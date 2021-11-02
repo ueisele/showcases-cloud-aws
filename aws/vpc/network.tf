@@ -17,6 +17,10 @@ resource "aws_vpc" "main" {
   }
 }
 
+output "vpc-id" {
+  value = aws_vpc.main.id
+}
+
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
 resource "aws_subnet" "public" {
   count = length(var.public_subnets)
@@ -203,7 +207,7 @@ resource "aws_route" "private_ipv6_egress" {
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/route53_zone
 data "aws_route53_zone" "main" {
-  name         = "${var.route53_public_main_zone}."
+  name = "${var.route53_public_main_zone}."
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone
@@ -214,6 +218,10 @@ resource "aws_route53_zone" "public" {
     Environment = var.environment
     Terraform = "true"
   }
+}
+
+output "public-hosted-zone-id" {
+  value = aws_route53_zone.public.id
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record
@@ -238,6 +246,10 @@ resource "aws_route53_zone" "private" {
     Environment = var.environment
     Terraform = "true"
   }
+}
+
+output "private-hosted-zone-id" {
+  value = aws_route53_zone.public.id
 }
 
 #################################

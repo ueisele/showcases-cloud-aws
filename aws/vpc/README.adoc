@@ -1,6 +1,6 @@
 = VPC
 
-== Quick Start
+== Apply Terraform
 
 [source,bash]
 ----
@@ -12,10 +12,16 @@ terraform init -backend-config="profile=tu-dev-ueisele"
 terraform plan --var "profile=tu-dev-ueisele"
 ----
 
-== Connect to Instances
+[source,bash]
+----
+terraform apply --var "profile=tu-dev-ueisele"
+----
 
-This VPC requires AWS Systems Manager Session Manager to connect to the Amazon EC2 instances.
+== Save Outputs to Variables
 
-* https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started.html
-* https://aws.amazon.com/de/blogs/infrastructure-and-automation/toward-a-bastion-less-world/
-* https://jon.sprig.gs/blog/post/1928
+[source,bash]
+----
+export VPC_ID="$(terraform output --raw vpc-id)"
+export PUBLIC_HOSTED_ZONE_ID="$(terraform output --raw public-hosted-zone-id)"
+export PRIVATE_HOSTED_ZONE_ID="$(terraform output --raw private-hosted-zone-id)"
+----
