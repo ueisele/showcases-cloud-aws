@@ -1,0 +1,39 @@
+= External DNS Controller for Route53
+
+https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md
+https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns
+
+== Deploy the External DNS Controller
+
+Create the Service Account with the Role ARN attached:
+
+[source,bash]
+----
+envsubst < service-account.yaml | kubectl apply -f -
+----
+
+Add Helm Repository:
+
+[source,bash]
+----
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+helm repo update
+----
+
+Set version and download values (if not exists):
+
+[source,bash]
+----
+export EXTERNAL_DNS_CONTROLLER_CHART_VERSION="1.4.0"
+helm show values external-dns/external-dns --version "${EXTERNAL_DNS_CONTROLLER_CHART_VERSION}" > external-dns-controller-values.yaml
+----
+
+Install the External DNS Controller with Helm:
+
+[source,bash]
+----
+helm upgrade -i external-dns-controller external-dns/external-dns \
+   --version "${EXTERNAL_DNS_CONTROLLER_CHART_VERSION}" \
+   --namespace kube-system \
+   --values ./external-dns-controller-values.yaml
+----

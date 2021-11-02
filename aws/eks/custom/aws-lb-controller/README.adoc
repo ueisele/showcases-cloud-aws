@@ -16,6 +16,7 @@ Add Helm Repository:
 [source,bash]
 ----
 helm repo add eks https://aws.github.io/eks-charts
+helm repo update
 ----
 
 Set version and download values (if not exists):

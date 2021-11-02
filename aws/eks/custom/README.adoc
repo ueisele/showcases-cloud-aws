@@ -10,3 +10,4 @@ aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name 
 * link:aws-auth/README.adoc[IAM authentication for Kubernetes]
 * link:storage/README.adoc[Storage configuration]
 * link:aws-lb-controller/README.adoc[AWS Load Balancer Controller Installation]
+* link:external-dns-controller/README.adoc[External DNS Controller Installation]

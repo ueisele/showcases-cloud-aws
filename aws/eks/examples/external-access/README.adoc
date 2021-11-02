@@ -10,20 +10,6 @@ External access to our EKS Kubernetes cluster is provided via AWS elastic load b
 * An link:https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html[AWS Application Load Balancer (ALB)] when you create a link:https://kubernetes.io/docs/concepts/services-networking/ingress/[Kubernetes Ingress].
 * An link:https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html[AWS Network Load Balancer (NLB)] when you create a link:https://kubernetes.io/docs/concepts/services-networking/service/[Kubernetes Service] of type link:https://kubernetes.io/docs/concepts/services-networking/service/#loadbalancer[LoadBalancer].
 
-== Prerequisites
-
-In order to be able to access exposed Ingresses and Services, you need to accordingly configure:
-
-* Security Groups and VPC ACLs
-* Route53
-
-=== Security Group and VPS ACLs
-
-The AWS Load Balancer Controller automatically creates a Security Group which allows access to the created Load Balancer on the specified listener port.
-
-However, in addition its also necassary, that there is a Security Group attached to the EKS EC2 Instance which enables access for the Load Balancer to the acutual port of the Pods.
-In addition also the VPC ACLs must enable access to the LoadBalancer port as well as to the internal port of a Pod. 
-
 == Ingress
 
 You can provide external access to Kubernetes apps by creating an link:https://kubernetes.io/docs/concepts/services-networking/ingress/[Kubernetes Ingress] resource.
@@ -242,3 +228,32 @@ curl --resolve nginx-hello.asyncapi.aws.uweeisele.dev:443:${TOOLS_LB_IP} https:/
 ----
 
 In order to make a request to `nginx-hello.asyncapi.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
+
+== External DNS
+
+For Kubernetes Services and Ingresses you cann add the `external-dns.alpha.kubernetes.io/hostname` annotation to the service or ingress: <https://github.com/kubernetes-sigs/external-dns/blob/master/docs/faq.md#how-do-i-specify-a-dns-name-for-my-kubernetes-objects>
+
+Example:
+
+[source,bash]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: kafka.asyncapi.aws.uweeisele.dev
+----
+
+For Kubernetes Ingress, also the Host which is specified in the ingress is considered.
+
+Example:
+
+[source,bash]
+----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+spec:
+  ingressClassName: aws-alb
+  rules:
+  - host: apicurio.asyncapi.aws.uweeisele.dev
+----

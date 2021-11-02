@@ -25,6 +25,7 @@ export ACCOUNT_ID="$(terraform output --raw account-id)"
 export CLUSTER_NAME="$(terraform output -raw cluster-name)"
 export VPC_ID="$(terraform output --raw vpc-id)"
 export AWS_LB_ROLE_ARN="$(terraform output --raw aws-load-balancer-controller-role-arn)"
+export EXTERNAL_DNS_ROLE_ARN="$(terraform output --raw external-dns-controller-role-arn)"
 ----
 
 == Update Kubeconfig
