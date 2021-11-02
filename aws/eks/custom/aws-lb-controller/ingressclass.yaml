@@ -1,0 +1,25 @@
+# IngressClass which is used as default and which uses a shared ALB
+# see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/ingress_class/
+---
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: IngressClassParams
+metadata:
+  name: aws-alb
+spec:
+  group:
+    name: default
+  ipAddressType: dualstack
+  scheme: internet-facing
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: aws-alb
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "true"
+spec:
+  controller: ingress.k8s.aws/alb
+  parameters:
+    apiGroup: elbv2.k8s.aws
+    kind: IngressClassParams
+    name: aws-alb

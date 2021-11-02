@@ -1,0 +1,67 @@
+= AWS Load Balancer Controller
+
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/
+
+== Deploy the AWS Load Balancer Controller
+
+Create the Service Account with the Role ARN attached:
+
+[source,bash]
+----
+envsubst < service-account.yaml | kubectl apply -f -
+----
+
+Add Helm Repository:
+
+[source,bash]
+----
+helm repo add eks https://aws.github.io/eks-charts
+----
+
+Set version and download values (if not exists):
+
+[source,bash]
+----
+export AWS_LB_CONTROLLER_CHART_VERSION="1.3.2"
+helm show values eks/aws-load-balancer-controller --version "${AWS_LB_CONTROLLER_CHART_VERSION}" > aws-load-balancer-controller-values.yaml
+----
+
+Install the AWS Load Balancer Controller with Helm:
+
+[source,bash]
+----
+helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller \
+   --version "${AWS_LB_CONTROLLER_CHART_VERSION}" \
+   --namespace kube-system \
+   --set clusterName="${CLUSTER_NAME}" \
+   --set vpcId="${VPC_ID}" \
+   --values ./aws-load-balancer-controller-values.yaml
+----
+
+== Deploy the IngressClass for the AWS LB Controller
+
+Ingresses can be implemented by different controllers, often with different configuration.
+
+Therefore, we need to create an IngressClass resource that contains additional configuration including the name of the controller that should implement the class (also see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/ingress_class/).
+
+The IngressClass is named `aws-alb` and is defined as default.
+So, after the IngressClass has been deployed, all created Ingress resources are managed by the AWS Load Balancer Controller.
+
+The IngressClass sets [`scheme`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/ingress_class/#specscheme) to `internal`, because in the K+N VPC, we have no public IP addresses.
+
+In addition, it sets [`group`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/ingress_class/#specgroup) to `default`, to add all Ingresses to the same AWS ALB.
+
+Deploy the IngressClass for the LB Controller:
+
+[source,bash]
+----
+kubectl apply -f ingressclass.yaml
+----
+
+Verify that the IngressClass has been created successfully:
+
+[source,bash]
+----
+kubectl get ingressClassParams aws-alb
+kubectl get ingressClass aws-alb
+----

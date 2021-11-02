@@ -1,11 +1,19 @@
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity
 data "aws_caller_identity" "current" {}
 
+output "account-id" {
+  value = data.aws_caller_identity.current.account_id
+}
+
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/vpc
 data "aws_vpc" "main" {
   tags = {
     Name = var.environment
   }
+}
+
+output "vpc-id" {
+  value = data.aws_vpc.main.id
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/subnet_ids

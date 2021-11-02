@@ -1,0 +1,11 @@
+= EKS AWS Auth
+
+[source,bash]
+----
+envsubst < aws-auth.yaml | kubectl apply -f -
+----
+
+Also see:
+
+* https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html
+* https://www.eksworkshop.com/beginner/091_iam-groups/test-cluster-access/

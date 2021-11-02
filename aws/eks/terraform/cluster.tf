@@ -28,7 +28,6 @@ resource "aws_eks_cluster" "main" {
     aws_iam_role_policy_attachment.eks-cluster-AmazonEKSClusterPolicy,
     aws_iam_role_policy_attachment.eks-cluster-AmazonEKSVPCResourceController,
   ]
-
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
