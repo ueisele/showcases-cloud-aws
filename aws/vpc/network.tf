@@ -253,6 +253,49 @@ output "private-hosted-zone-id" {
 }
 
 #################################
+# ACM Certificates              #
+#################################
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate
+resource "aws_acm_certificate" "public" {
+  domain_name       = "*.${aws_route53_zone.public.name}"
+  validation_method = "DNS"
+
+  tags = {
+    Environment = var.environment
+    Terraform = "true"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record
+resource "aws_route53_record" "public-validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.public.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = aws_route53_zone.public.zone_id
+}
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate_validation
+resource "aws_acm_certificate_validation" "public" {
+  certificate_arn         = aws_acm_certificate.public.arn
+  validation_record_fqdns = [for record in aws_route53_record.public-validation : record.fqdn]
+}
+
+#################################
 # DHCP                          #
 #################################
 
