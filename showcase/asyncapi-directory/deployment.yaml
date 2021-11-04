@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: asyncapidirectory
+  name: asyncapidirectory
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: asyncapidirectory
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: asyncapidirectory
+    spec:
+      containers:
+      - name: apicurio 
+        image: novatec/asyncapi-directory:c7653b50
+        command: ["java","-cp", "/app/*", "de.novatec.tc.KafkaApplication", "--spring.config.location=file:/app/application.properties"]
+        volumeMounts:
+        - name: asyncapidirectory-configs
+          mountPath: /app/application.properties
+          subPath: application.properties
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: BOOTSTRAP_SERVERS
+          valueFrom:
+            secretKeyRef:
+              name: confluent-kafka
+              key: url
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: confluent-kafka
+              key: username
+        - name: API_KEY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: confluent-kafka
+              key: password
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+      restartPolicy: Always
+      volumes:
+      - name: asyncapidirectory-configs
+        configMap:
+          name: asyncapidirectory-configs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: asyncapidirectory-configs
+data:
+  application.properties: |
+    kafka.message.topic.name=asyncapidirectory
+    kafka.group.id=asyncapidirectory
+    kafka.bootstrap.servers=${BOOTSTRAP_SERVERS}
+    kafka.sasl.mechanism=PLAIN
+    kafka.sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="${API_KEY}" password="${API_KEY_SECRET}";
+    kafka.security.protocol=SASL_SSL
+    kafka.client.dns.lookup=use_all_dns_ips
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: asyncapidirectory
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: asyncapidirectory
+---
+# https://doc.traefik.io/traefik/routing/providers/kubernetes-ingress/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-api-auth@kubernetescrd
+  name: asyncapidirectory
+spec:
+  rules:
+  - host: asyncapidirectory.asyncapi.aws.uweeisele.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: asyncapidirectory
+            port:
+              name: http

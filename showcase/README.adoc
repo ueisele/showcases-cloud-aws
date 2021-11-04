@@ -1,0 +1,6 @@
+= Showcase AsyncAPI Setup
+
+[source,bash]
+----
+kubectl create ns showcase
+----

@@ -1,0 +1,16 @@
+= Confluent Cloud Setup
+
+== Secrets
+
+Create the secrets required for the showcase. Run the following commands for each secret:
+
+* Confluent Cloud Kafka Cluster: `export SECRET_NAME=confluent-kafka`
+* Confluent Cloud Schema Registry: `export SECRET_NAME=confluent-schemaregistry`
+
+[source,bash]
+----
+export SERVER_URL=<server-url>
+export API_KEY=<api-key>
+export API_KEY_SECRET=<api-key-secret>
+envsubst < basicauth-secret.yaml | kubectl -n showcase apply -f -
+----

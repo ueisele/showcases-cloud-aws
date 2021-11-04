@@ -1,0 +1,6 @@
+= AsyncAPI Directory Setup
+
+[source,bash]
+----
+kubectl -n showcase apply -f deployment.yaml
+----
