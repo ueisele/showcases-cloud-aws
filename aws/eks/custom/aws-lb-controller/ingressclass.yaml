@@ -16,7 +16,7 @@ kind: IngressClass
 metadata:
   name: aws-alb
   annotations:
-    ingressclass.kubernetes.io/is-default-class: "true"
+    ingressclass.kubernetes.io/is-default-class: "false"
 spec:
   controller: ingress.k8s.aws/alb
   parameters:

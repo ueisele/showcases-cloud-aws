@@ -295,6 +295,10 @@ resource "aws_acm_certificate_validation" "public" {
   validation_record_fqdns = [for record in aws_route53_record.public-validation : record.fqdn]
 }
 
+output "public-certificate-arn" {
+  value = aws_acm_certificate.public.arn
+}
+
 #################################
 # DHCP                          #
 #################################

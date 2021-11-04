@@ -1,0 +1,41 @@
+= Traefik Ingress Controller
+
+https://github.com/traefik/traefik-helm-chart
+
+== Deploy the Traefik Ingress Controller
+
+Add Helm Repository:
+
+[source,bash]
+----
+helm repo add traefik https://helm.traefik.io/traefik
+helm repo update
+----
+
+Set version and download values (if not exists):
+
+[source,bash]
+----
+helm search repo traefik
+export TRAEFIK_CHART_VERSION="10.6.0"
+helm show values traefik/traefik --version "${TRAEFIK_CHART_VERSION}" > traefik-ingress-controller-values.yaml
+----
+
+Install the Traefik Ingress Controller with Helm:
+
+[source,bash]
+----
+helm upgrade -i traefik traefik/traefik \
+   --version "${TRAEFIK_CHART_VERSION}" \
+   --namespace kube-system \
+   --values ./traefik-ingress-controller-values.yaml
+----
+
+Deploy the BasicAuth Middleware:
+
+IMPORTANT: Change the user and password in the secret!!
+
+[source,bash]
+----
+kubectl apply -f middleware-basicauth.yaml
+----

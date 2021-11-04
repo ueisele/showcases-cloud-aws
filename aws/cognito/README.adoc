@@ -1,0 +1,23 @@
+= Cognito
+
+NOTE: Not used at the moment!
+
+https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/tasks/cognito_authentication/
+https://docs.aws.amazon.com/cognito/latest/developerguide/what-is-amazon-cognito.html
+
+== Apply Terraform
+
+[source,bash]
+----
+terraform init -backend-config="profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform plan --var "profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform apply --var "profile=tu-dev-ueisele"
+----

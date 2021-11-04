@@ -1,21 +1,19 @@
 ---
+# https://doc.traefik.io/traefik/routing/providers/kubernetes-ingress/
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/backend-protocol: HTTP
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/healthcheck-path: /
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-api-auth@kubernetescrd
   name: nginx-hello-https
 spec:
-  ingressClassName: aws-alb
   rules:
   - host: nginx-hello.asyncapi.aws.uweeisele.dev
     http:
       paths:
-      - path: /*
-        pathType: ImplementationSpecific
+      - path: /
+        pathType: Prefix
         backend:
           service:
             name: nginx-hello

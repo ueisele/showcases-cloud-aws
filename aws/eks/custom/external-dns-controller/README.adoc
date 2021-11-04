@@ -3,6 +3,8 @@
 https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/aws.md
 https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns
 
+TODO: https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/integrations/external_dns/
+
 == Deploy the External DNS Controller
 
 Create the Service Account with the Role ARN attached:

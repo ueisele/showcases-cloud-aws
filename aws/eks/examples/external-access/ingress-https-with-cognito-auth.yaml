@@ -1,0 +1,45 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80},{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/actions.ssl-redirect: '{"Type": "redirect", "RedirectConfig": { "Protocol": "HTTPS", "Port": "443", "StatusCode": "HTTP_301"}}'
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    # Authentication type must be cognito
+    alb.ingress.kubernetes.io/auth-type: cognito
+    # Required parameter for ALB/Cognito integration
+    alb.ingress.kubernetes.io/auth-scope: openid
+    # Session timeout on authentication credentials
+    alb.ingress.kubernetes.io/auth-session-timeout: '3600'
+    # Session cookie name
+    alb.ingress.kubernetes.io/auth-session-cookie: AWSELBAuthSessionCookie
+    # Action to take when a request is not authenticated
+    alb.ingress.kubernetes.io/auth-on-unauthenticated-request: authenticate
+    # Cognito parameters required for creation of authentication rules
+    # The subdomain name only is sufficient for `UserPoolDomain`
+    # e.g. if `FQDN=app.auth.ap-northeast-1.amazoncognito.com` then `UserPoolDomain=app`
+    alb.ingress.kubernetes.io/auth-idp-cognito: '{"UserPoolArn": "arn:aws:cognito-idp:eu-central-1:${ACCOUNT_ID}:userpool/${USER_POOL_ID}","UserPoolClientId":"${CLIENT_ID}","UserPoolDomain":"${USER_POOL_DOMAIN}"}'    
+  name: nginx-hello-https
+spec:
+  ingressClassName: aws-alb
+  rules:
+  - host: nginx-hello.asyncapi.aws.uweeisele.dev
+    http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: ssl-redirect
+            port:
+              name: use-annotation
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: nginx-hello
+            port:
+              name: http
