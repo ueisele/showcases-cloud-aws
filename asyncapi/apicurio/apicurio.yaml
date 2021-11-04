@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: apicurioregistry
+  name: apicurioregistry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: apicurioregistry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: apicurioregistry
+    spec:
+      containers:
+      - name: apicurio 
+        image: apicurio/apicurio-registry-mem:2.1.2.Final
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: REGISTRY_UI_CONFIG_APIURL
+          value: https://apicurioregistry.asyncapi.aws.uweeisele.dev/apis/registry
+        - name: REGISTRY_UI_CONFIG_UIURL
+          value: https://apicurioregistry.asyncapi.aws.uweeisele.dev/ui
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apicurioregistry
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: apicurioregistry
+---
+# https://doc.traefik.io/traefik/routing/providers/kubernetes-ingress/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-api-auth@kubernetescrd
+  name: apicurioregistry
+spec:
+  rules:
+  - host: apicurioregistry.asyncapi.aws.uweeisele.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: apicurioregistry
+            port:
+              name: http

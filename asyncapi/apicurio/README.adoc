@@ -1,0 +1,11 @@
+= AsyncAPI Showcase Setup
+
+[source,bash]
+----
+kubectl create ns showcase
+----
+
+[source,bash]
+----
+kubectl -n showcase apply -f asyncapi/apicurio/apicurio.yaml
+----
