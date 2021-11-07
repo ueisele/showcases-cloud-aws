@@ -1,5 +1,7 @@
 = EKS Kubernetes
 
+NOTE: Not used at the moment!
+
 == Quick Start
 
 [source,bash]

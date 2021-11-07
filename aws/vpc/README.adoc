@@ -26,3 +26,7 @@ export PUBLIC_HOSTED_ZONE_ID="$(terraform output --raw public-hosted-zone-id)"
 export PRIVATE_HOSTED_ZONE_ID="$(terraform output --raw private-hosted-zone-id)"
 export PUBLIC_HOSTED_ZONE_CERT_ARN="$(terraform output --raw public-certificate-arn)"
 ----
+
+== ToDo
+
+* NAT Gateways 0.05$/h (reduce to save money)

@@ -55,3 +55,7 @@ aws ssm start-session --profile tu-dev-ueisele --target i-07285b57d9a6ebaa2
 * https://www.padok.fr/en/blog/aws-eks-cluster-terraform
 * https://learn.hashicorp.com/tutorials/terraform/eks
 * https://learnk8s.io/terraform-eks
+
+== ToDo
+
+* Kubernetes Cluster with OIDC authentication (auth without aws-auth ConfigMap adjustment)
