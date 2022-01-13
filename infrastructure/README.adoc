@@ -3,3 +3,5 @@
 At the moment there is only a single infrastructure implemented on link:aws/README.adoc[AWS].
 
 image:showcase-infrastructure.drawio.png[]
+
+link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fnovatec%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
