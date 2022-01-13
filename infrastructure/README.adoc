@@ -1,3 +1,5 @@
 = Infrastructures
 
 At the moment there is only a single infrastructure implemented on link:aws/README.adoc[AWS].
+
+image:showcase-infrastructure.drawio.png[]

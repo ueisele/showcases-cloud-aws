@@ -6,6 +6,8 @@ The goal of this repository is to demonstrate and evaluate cloud services and to
 
 * link:infrastructure/aws/README.adoc[AWS]
 
+image:infrastructure/showcase-infrastructure.drawio.png[]
+
 *link:platform/README.adoc[Platforms]*
 
 * link:platform/asyncapi/README.adoc[AsyncAPI]
