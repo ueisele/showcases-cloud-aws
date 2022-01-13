@@ -4,6 +4,8 @@ The goal of this repository is to demonstrate and evaluate cloud services and to
 
 *IMPORTANT*: Work is still in progress!
 
+== Overview
+
 *link:infrastructure/README.adoc[Infrastructures]*
 
 * link:infrastructure/aws/README.adoc[AWS]
@@ -15,3 +17,16 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fnovatec%2Finfrastruc
 *link:platform/README.adoc[Platforms]*
 
 * link:platform/asyncapi/README.adoc[AsyncAPI]
+
+== Prerequisites
+
+Download and install the following tools:
+
+* link:https://www.terraform.io/downloads[Terraform]
+* link:https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html[AWS CLI]
+* link:https://kubernetes.io/docs/tasks/tools/[Kubectl]
+* link:https://helm.sh/docs/intro/install/[Helm]
+
+Configure the following tools:
+
+* link:https://docs.aws.amazon.com/en_en/translate/latest/dg/setup-awscli.html[AWS CLI]

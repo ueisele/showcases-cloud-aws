@@ -9,3 +9,7 @@ Also see:
 
 * https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html
 * https://www.eksworkshop.com/beginner/091_iam-groups/test-cluster-access/
+
+ToDo:
+
+* Use OIDC instead: https://aws.amazon.com/de/blogs/containers/introducing-oidc-identity-provider-authentication-amazon-eks/

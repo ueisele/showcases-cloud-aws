@@ -1,4 +1,6 @@
 = EKS
 
+Deploy in the following order:
+
 * link:terraform/README.adoc[Setup EKS cluster with Terraform]
 * link:custom/README.adoc[Manual adjustments and cluster setup]

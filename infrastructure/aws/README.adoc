@@ -1,1 +1,6 @@
 = Infrastructure on AWS
+
+Deploy in the following order:
+
+* link:vpc/README.adoc[VPC Setup]
+* link:eks/README.adoc[EKS Setup]
