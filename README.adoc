@@ -12,7 +12,7 @@ The goal of this repository is to demonstrate and evaluate cloud services and to
 
 image:infrastructure/showcase-infrastructure.drawio.png[]
 
-link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fnovatec%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
+link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
 
 *link:platform/README.adoc[Platforms]*
 
