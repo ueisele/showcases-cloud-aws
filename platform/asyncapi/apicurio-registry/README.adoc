@@ -1,0 +1,6 @@
+= Apicurio Registry Setup
+
+[source,bash]
+----
+kubectl -n asyncapi apply -f deployment.yaml
+----

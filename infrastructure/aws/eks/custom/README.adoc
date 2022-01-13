@@ -1,0 +1,14 @@
+= EKS Custom Install
+
+Update your Kubeconfig:
+
+[source,bash]
+----
+aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name showcase-eks
+----
+
+* link:aws-auth/README.adoc[IAM authentication for Kubernetes]
+* link:storage/README.adoc[Storage configuration]
+* link:aws-lb-controller/README.adoc[AWS Load Balancer Controller Installation]
+* link:external-dns-controller/README.adoc[External DNS Controller Installation]
+* link:traefik-ingress-controller/README.adoc[Traefik Ingress Controller Installation]

@@ -1,0 +1,6 @@
+= AsyncAPI Platform
+
+[source,bash]
+----
+kubectl create ns asyncapi
+----

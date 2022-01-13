@@ -1,0 +1,21 @@
+---
+# https://doc.traefik.io/traefik/routing/providers/kubernetes-ingress/
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-api-auth@kubernetescrd
+  name: nginx-hello-https
+spec:
+  rules:
+  - host: nginx-hello.showcase.aws.uweeisele.dev
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-hello
+            port:
+              name: http

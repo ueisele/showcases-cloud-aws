@@ -1,1 +1,11 @@
-= Showcase AsyncAPI Cloud Environment
+= Cloud Showcases
+
+The goal of this repository is to demonstrate and evaluate cloud services and to provide an infrastructure for additional showcases.
+
+*link:infrastructure/README.adoc[Infrastructures]*
+
+* link:infrastructure/aws/README.adoc[AWS]
+
+*link:platform/README.adoc[Platforms]*
+
+* link:platform/asyncapi/README.adoc[AsyncAPI]
