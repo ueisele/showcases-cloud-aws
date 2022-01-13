@@ -2,6 +2,8 @@
 
 The goal of this repository is to demonstrate and evaluate cloud services and to provide an infrastructure for additional showcases.
 
+*IMPORTANT*: Work is still in progress!
+
 *link:infrastructure/README.adoc[Infrastructures]*
 
 * link:infrastructure/aws/README.adoc[AWS]
