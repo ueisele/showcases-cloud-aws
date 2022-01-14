@@ -28,7 +28,7 @@ data "aws_subnet_ids" "public" {
 data "aws_subnet_ids" "private" {
   vpc_id = data.aws_vpc.main.id
   tags = {
-    Tier = "public"
+    Tier = "private"
   }
 }
 

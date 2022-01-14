@@ -166,9 +166,9 @@ resource "aws_eks_node_group" "main" {
   disk_size = 30
 
   scaling_config {
-    desired_size = 1
+    desired_size = 3
     max_size     = 6
-    min_size     = 1
+    min_size     = 3
   }
 
   # Optional: Allow external changes without Terraform plan difference
