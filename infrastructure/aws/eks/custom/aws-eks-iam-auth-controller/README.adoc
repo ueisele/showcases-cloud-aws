@@ -1,0 +1,80 @@
+= AWS EKS IAM Auth Controller Installation
+
+https://github.com/rustrial/aws-eks-iam-auth-controller
+
+== EKS Authentication Overview
+
+AWS EKS uses the link:https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[aws-auth] ConfigMap in the kube-system namespace to map authenticated identities to Kubernetes username and groups.
+
+You could authorize users and roles by manually modyfing the aws-auth ConfigMap.
+
+[source,bash]
+----
+envsubst < aws-auth.yaml | kubectl apply -f -
+----
+
+HINT: Ensure that environment variables `ACCOUNT_ID`, `EKS_NODE_GROUP_ROLE_ARN` and `K8SADMIN_ROLE_ARN` are set.
+
+However, using a single ConfigMap makes it hard and error prone to manage identity mappings using GitOps approach.
+
+Also see:
+
+* https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html
+* https://www.eksworkshop.com/beginner/091_iam-groups/test-cluster-access/
+
+== Deploy the AWS EKS IAM Auth Controller
+
+This Kubernetes Controller closes the gap by implementing a Custom Resource Controller, updating the aws-auth ConfigMap from IAMIdentityMapping objects. Once link:https://github.com/aws/containers-roadmap/issues/550[#550] or link:https://github.com/aws/containers-roadmap/issues/512[#512] is resolved this controller will no longer be needed.
+
+Add Helm Repository:
+
+[source,bash]
+----
+helm repo add aws-eks-iam-auth-controller https://rustrial.github.io/aws-eks-iam-auth-controller
+helm repo update
+----
+
+Set version and download values (if not exists):
+
+[source,bash]
+----
+export AWS_EKS_IAM_AUTH_CONTROLLER_CHART_VERSION="0.1.6"
+helm show values aws-eks-iam-auth-controller/rustrial-aws-eks-iam-auth-controller --version "${AWS_EKS_IAM_AUTH_CONTROLLER_CHART_VERSION}" > aws-eks-iam-auth-controller-values.yaml
+----
+
+Install the AWS Load Balancer Controller with Helm:
+
+[source,bash]
+----
+helm upgrade -i aws-eks-iam-auth-controller aws-eks-iam-auth-controller/rustrial-aws-eks-iam-auth-controller \
+   --version "${AWS_EKS_IAM_AUTH_CONTROLLER_CHART_VERSION}" \
+   --namespace kube-system \
+   --set clusterName="${CLUSTER_NAME}" \
+   --set vpcId="${VPC_ID}" \
+   --values ./aws-eks-iam-auth-controller-values.yaml
+----
+
+== Authorize Users and Roles
+
+With the AWS EKS IAM Auth Controller authorizations can be managed by `IAMIdentityMapping` resources.
+
+.Add the permissions for the EKS node group, user `ueisele` and role `k8sadmin`
+[source,bash]
+----
+envsubst < iamidentitymapping-nodes.yaml | kubectl apply -f -
+envsubst < iamidentitymapping-admins.yaml | kubectl apply -f -
+----
+
+HINT: Ensure that environment variables `ACCOUNT_ID`, `EKS_NODE_GROUP_ROLE_ARN` and `K8SADMIN_ROLE_ARN` are set.
+
+.Check if the CRs have been created
+[source,bash]
+----
+kubectl -n kube-system get IAMIdentityMapping
+----
+
+.Check if the users and roles have been added to the aws-auth ConfigMap
+[source,bash]
+----
+kubectl -n kube-system get cm aws-auth -o yaml
+----

@@ -1,0 +1,12 @@
+---
+apiVersion: iamauthenticator.k8s.aws/v1alpha1
+kind: IAMIdentityMapping
+metadata:
+  name: kubernetes-nodes
+  namespace: kube-system
+spec:
+  arn: ${EKS_NODE_GROUP_ROLE_ARN}
+  username: system:node:{{EC2PrivateDNSName}}
+  groups:
+    - system:bootstrappers
+    - system:nodes

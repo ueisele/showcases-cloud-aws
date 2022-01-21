@@ -1,0 +1,22 @@
+---
+apiVersion: iamauthenticator.k8s.aws/v1alpha1
+kind: IAMIdentityMapping
+metadata:
+  name: kubernetes-admin-user-ueisele
+  namespace: kube-system
+spec:
+  arn: arn:aws:iam::${ACCOUNT_ID}:user/ueisele
+  username: admin
+  groups:
+    - system:masters
+---
+apiVersion: iamauthenticator.k8s.aws/v1alpha1
+kind: IAMIdentityMapping
+metadata:
+  name: kubernetes-admin-role-k8sadmin
+  namespace: kube-system
+spec:
+  arn: ${K8SADMIN_ROLE_ARN}
+  username: admin
+  groups:
+    - system:masters
