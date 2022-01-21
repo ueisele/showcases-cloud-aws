@@ -26,6 +26,8 @@ terraform apply --var "profile=tu-dev-ueisele"
 export ACCOUNT_ID="$(terraform output --raw account-id)"
 export CLUSTER_NAME="$(terraform output -raw cluster-name)"
 export VPC_ID="$(terraform output --raw vpc-id)"
+export K8SADMIN_ROLE_ARN="$(terraform output --raw ks8admin-role-arn)"
+export K8SADMIN_ASSUMEROLE_POLICY_AREN="$(terraform output --raw ks8admin-assumerole-policy-arn)"
 export AWS_LB_ROLE_ARN="$(terraform output --raw aws-load-balancer-controller-role-arn)"
 export EXTERNAL_DNS_ROLE_ARN="$(terraform output --raw external-dns-controller-role-arn)"
 ----
@@ -37,27 +39,40 @@ export EXTERNAL_DNS_ROLE_ARN="$(terraform output --raw external-dns-controller-r
 aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name showcase-eks
 ----
 
-== Connect to Instances
+In order to run this command, `eks:DescribeCluster` is required.
 
-This VPC requires AWS Systems Manager Session Manager to connect to the Amazon EC2 instances.
+== K8S Permissions
+
+The user which created the EKS cluster is automatically authorized to access the cluster.
+
+Other users and must be authorized explicitely. How to do this is described at link:../custom/aws-eks-iam-auth-controller/README.adoc[../custom/aws-eks-iam-auth-controller/README.adoc].
+
+In order to be able to become an admin, a user or group must have the `ks8admin-assumerole-policy-arn` attached.
 
 [source,bash]
 ----
-aws ssm start-session --profile tu-dev-ueisele --target i-07285b57d9a6ebaa2
+mkdir -p ~/.aws
+
+cat << EOF >> ~/.aws/config
+[profile admin]
+role_arn=${K8SADMIN_ROLE_ARN}
+source_profile=eksAdmin
+EOF
 ----
 
-* https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started.html
-* https://aws.amazon.com/de/blogs/infrastructure-and-automation/toward-a-bastion-less-world/
-* https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html
-* http://docs.aws.amazon.com/console/systems-manager/session-manager-plugin-not-found
-* https://jon.sprig.gs/blog/post/1928
+[source,bash]
+----
+cat << EOF >> ~/.aws/credentials
+[eksAdmin]
+aws_access_key_id=${EKS_ADMIN_ACCESS_KEY_ID}
+aws_secret_access_key=${EKS_ADMIN_SECRET_ACCESS_KEY}
+EOF
+----
+
+Also see: https://www.eksworkshop.com/beginner/091_iam-groups/test-cluster-access/
 
 == Guides
 
 * https://www.padok.fr/en/blog/aws-eks-cluster-terraform
 * https://learn.hashicorp.com/tutorials/terraform/eks
 * https://learnk8s.io/terraform-eks
-
-== ToDo
-
-* Kubernetes Cluster with OIDC authentication (auth without aws-auth ConfigMap adjustment)

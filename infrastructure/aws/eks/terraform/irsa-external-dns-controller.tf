@@ -40,20 +40,16 @@ resource "aws_iam_policy" "external-dns-controller" {
 data "aws_iam_policy_document" "external-dns-controller" {
   statement {
     effect = "Allow"
-
     actions = ["route53:ChangeResourceRecordSets"]
-
     resources = ["arn:aws:route53:::hostedzone/*"]
   }  
 
   statement {
     effect = "Allow"
-
     actions = [
       "route53:ListHostedZones",
       "route53:ListResourceRecordSets"
     ]
-
     resources = ["*"]
   }  
 }

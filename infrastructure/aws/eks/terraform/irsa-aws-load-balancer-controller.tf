@@ -40,11 +40,8 @@ resource "aws_iam_policy" "aws-lb-controller" {
 data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
-
     actions = ["iam:CreateServiceLinkedRole"]
-
     resources = ["*"]
-
     condition {
       test     = "StringEquals"
       variable = "iam:AWSServiceName"
@@ -54,7 +51,6 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "ec2:DescribeAccountAttributes",
         "ec2:DescribeAddresses",
@@ -80,13 +76,11 @@ data "aws_iam_policy_document" "aws-lb-controller" {
         "elasticloadbalancing:DescribeTargetHealth",
         "elasticloadbalancing:DescribeTags"
     ]
-
     resources = ["*"]
   }
 
   statement {
     effect = "Allow"
-
     actions = [
         "cognito-idp:DescribeUserPoolClient",
         "acm:ListCertificates",
@@ -106,42 +100,33 @@ data "aws_iam_policy_document" "aws-lb-controller" {
         "shield:CreateProtection",
         "shield:DeleteProtection"
     ]
-
     resources = ["*"]
   }
 
   statement {
     effect = "Allow"
-
     actions = [
         "ec2:AuthorizeSecurityGroupIngress",
         "ec2:RevokeSecurityGroupIngress"
     ]
-
     resources = ["*"]
   }  
 
   statement {
     effect = "Allow"
-
     actions = ["ec2:CreateSecurityGroup"]
-
     resources = ["*"]
   }
 
   statement {
     effect = "Allow"
-
     actions = ["ec2:CreateTags"]
-
     resources = ["arn:aws:ec2:*:*:security-group/*"]
-
     condition {
       test     = "StringEquals"
       variable = "ec2:CreateAction"
       values   = ["CreateSecurityGroup"]
     }
-
     condition {
       test     = "Null"
       variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
@@ -151,20 +136,16 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "ec2:CreateTags",
         "ec2:DeleteTags"
     ]
-
     resources = ["arn:aws:ec2:*:*:security-group/*"]
-
     condition {
       test     = "Null"
       variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
       values   = ["true"]
     }
-
     condition {
       test     = "Null"
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
@@ -174,15 +155,12 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "ec2:AuthorizeSecurityGroupIngress",
         "ec2:RevokeSecurityGroupIngress",
         "ec2:DeleteSecurityGroup"
     ]
-
     resources = ["*"]
-
     condition {
       test     = "Null"
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
@@ -192,14 +170,11 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:CreateLoadBalancer",
         "elasticloadbalancing:CreateTargetGroup"
     ]
-
     resources = ["*"]
-
     condition {
       test     = "Null"
       variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
@@ -209,37 +184,31 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:CreateListener",
         "elasticloadbalancing:DeleteListener",
         "elasticloadbalancing:CreateRule",
         "elasticloadbalancing:DeleteRule"
     ]
-
     resources = ["*"]
   }
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:AddTags",
         "elasticloadbalancing:RemoveTags"
     ]
-
     resources = [
         "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
         "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
         "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
     ]
-
     condition {
       test     = "Null"
       variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
       values   = ["true"]
     }
-
     condition {
       test     = "Null"
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
@@ -249,12 +218,10 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:AddTags",
         "elasticloadbalancing:RemoveTags"
     ]
-
     resources = [
         "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
         "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
@@ -265,7 +232,6 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:ModifyLoadBalancerAttributes",
         "elasticloadbalancing:SetIpAddressType",
@@ -276,9 +242,7 @@ data "aws_iam_policy_document" "aws-lb-controller" {
         "elasticloadbalancing:ModifyTargetGroupAttributes",
         "elasticloadbalancing:DeleteTargetGroup"
     ]
-
     resources = ["*"]
-
     condition {
       test     = "Null"
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
@@ -288,18 +252,15 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:RegisterTargets",
         "elasticloadbalancing:DeregisterTargets"
     ]
-
     resources = ["arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"]
   }
 
   statement {
     effect = "Allow"
-
     actions = [
         "elasticloadbalancing:SetWebAcl",
         "elasticloadbalancing:ModifyListener",
@@ -307,7 +268,6 @@ data "aws_iam_policy_document" "aws-lb-controller" {
         "elasticloadbalancing:RemoveListenerCertificates",
         "elasticloadbalancing:ModifyRule"
     ]
-
     resources = ["*"]
   }
 }
