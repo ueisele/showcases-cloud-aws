@@ -20,6 +20,8 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fmain%2Finfrastructur
 
 == Prerequisites
 
+=== Tools
+
 Download and install the following tools:
 
 * link:https://www.terraform.io/downloads[Terraform]
@@ -33,4 +35,46 @@ Configure the tools:
 [source,bash]
 ----
 aws configure --profile tu-dev-ueisele
+----
+
+=== IAM Permissions
+
+The required IAM permissions can be found in the individual directories.
+
+* link:infrastructure/aws/tfstate-s3/required-iam-policy.json[S3 Terraform State Backend Setup]
+* link:infrastructure/aws/vpc/required-iam-policy.json[VPC IAM Policy]
+* link:infrastructure/aws/eks/terraform/required-iam-policy.json[EKS IAM Policy]
+
+To capture the required policy, the tool link:https://github.com/iann0036/iamlive[iamlive] was used. How to use it together with terraform is describe in the blog article link:https://meirg.co.il/2021/04/23/determining-aws-iam-policies-according-to-terraform-and-aws-cli/[Determining AWS IAM Policies According To Terraform And AWS CLI].
+
+Roughly summarized the following steps are required:
+
+.Install iamlive
+[source,bash]
+----
+go install github.com/iann0036/iamlive@latest
+----
+
+.Start iamlive in proxy mode
+[source,bash]
+----
+iamlive \
+    --profile tu-dev-ueisele \
+    --mode proxy --bind-addr 0.0.0.0:10080 \
+    --force-wildcard-resource \
+    --output-file iam-policy-vpc.json
+----
+
+.Navigate to the terminal in which you want to run terraform and set the proxy env variables
+[source,bash]
+----
+export HTTP_PROXY=http://127.0.0.1:10080 \
+       HTTPS_PROXY=http://127.0.0.1:10080 \
+       AWS_CA_BUNDLE="${HOME}/.iamlive/ca.pem"
+----
+
+.If you now run terraform apply, the required policy is recorded by iamlive
+[source,bash]
+----
+terraform apply --var "profile=tu-dev-ueisele"
 ----

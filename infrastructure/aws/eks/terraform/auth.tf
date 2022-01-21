@@ -1,5 +1,6 @@
 #####################################
 # Kubernetes Access with IAM Groups #
+# Deprecated                        #
 #####################################
 # https://www.eksworkshop.com/beginner/091_iam-groups/
 

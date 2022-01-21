@@ -5,6 +5,8 @@ NOTE: Not used at the moment!
 https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/tasks/cognito_authentication/
 https://docs.aws.amazon.com/cognito/latest/developerguide/what-is-amazon-cognito.html
 
+Ensure you have the required link:required-iam-policy.json[IAM permissions].
+
 == Apply Terraform
 
 [source,bash]

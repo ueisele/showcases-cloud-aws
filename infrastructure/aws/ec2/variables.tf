@@ -7,5 +7,5 @@ variable "profile" {
 }
 
 variable "environment" {
-  default = "paia"
+  default = "showcase"
 }

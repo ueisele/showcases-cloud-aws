@@ -2,6 +2,8 @@
 
 NOTE: Not used at the moment!
 
+Ensure you have the required link:required-iam-policy.json[IAM permissions].
+
 == Apply Terraform
 
 [source,bash]

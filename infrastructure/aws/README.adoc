@@ -2,6 +2,6 @@
 
 Deploy in the following order:
 
-* link:s3-tfstate/README.adoc[S3 Terraform State Setup]
+* link:tfstate-S3/README.adoc[S3 Terraform State Backend Setup]
 * link:vpc/README.adoc[VPC Setup]
 * link:eks/README.adoc[EKS Setup]
