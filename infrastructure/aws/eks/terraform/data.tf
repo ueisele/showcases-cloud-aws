@@ -68,11 +68,6 @@ data "aws_security_groups" "web" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_instance_profile
-data "aws_iam_instance_profile" "default" {
-  name = "${var.environment}-default"
-}
-
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/route53_zone
 data "aws_route53_zone" "public" {
   name         = "${var.environment}.${var.route53_public_main_zone}"

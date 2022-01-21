@@ -27,6 +27,10 @@ Download and install the following tools:
 * link:https://kubernetes.io/docs/tasks/tools/[Kubectl]
 * link:https://helm.sh/docs/intro/install/[Helm]
 
-Configure the following tools:
+Configure the tools:
 
-* link:https://docs.aws.amazon.com/en_en/translate/latest/dg/setup-awscli.html[AWS CLI]
+.Create AWS Cli profile
+[source,bash]
+----
+aws configure --profile tu-dev-ueisele
+----

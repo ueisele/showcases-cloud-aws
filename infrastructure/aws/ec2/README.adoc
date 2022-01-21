@@ -1,0 +1,20 @@
+= EC2
+
+NOTE: Not used at the moment!
+
+== Apply Terraform
+
+[source,bash]
+----
+terraform init -backend-config="profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform plan --var "profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform apply --var "profile=tu-dev-ueisele"
+----
