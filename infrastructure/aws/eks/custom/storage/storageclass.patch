@@ -1,5 +1,0 @@
-# allow volume expansion for storage class
-# see https://kubernetes.io/blog/2018/07/12/resizing-persistent-volumes-using-kubernetes/
-# patch with:
-#   kubectl patch storageclass gp2 --patch "$(cat k8s/kubectl/storageclass.patch)"
-allowVolumeExpansion: true

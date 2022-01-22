@@ -10,7 +10,9 @@ aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name 
 Run the following installations:
 
 * link:aws-eks-iam-auth-controller/README.adoc[AWS EKS IAM Auth Controller Installation]
-* link:storage/README.adoc[Storage configuration]
+* link:aws-ebs-deprecated/README.adoc[Deletion of deprecated AWS EBS GP2 Storage Class]
+* link:aws-ebs-csi-driver/README.adoc[AWS EBS CSI Driver Storage Class Installation]
+* link:aws-efs-csi-driver/README.adoc[AWS EFS CSI Driver Installation]
 * link:aws-lb-controller/README.adoc[AWS Load Balancer Controller Installation]
 * link:external-dns-controller/README.adoc[External DNS Controller Installation]
 * link:traefik-ingress-controller/README.adoc[Traefik Ingress Controller Installation]
@@ -21,3 +23,4 @@ Run the following installations:
 * Kubernetes Dashboard: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
 * Cluster Autoscaler: https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
 * Security Groups for Pods: https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
+* Network Isolation with Calico: https://docs.aws.amazon.com/eks/latest/userguide/calico.html

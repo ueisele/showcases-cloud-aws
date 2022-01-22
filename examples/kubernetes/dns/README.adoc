@@ -1,0 +1,21 @@
+= Debugging DNS Resolution
+
+https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/
+
+.Use that manifest to create a Pod
+[source,bash]
+----
+kubectl apply -f dnsutils-pod.yaml
+----
+
+.…and verify its status
+[source,bash]
+----
+kubectl get pods dnsutils
+----
+
+.Once that Pod is running, you can exec nslookup in that environment
+[source,bash]
+----
+kubectl exec -i -t dnsutils -- nslookup kubernetes.default
+----

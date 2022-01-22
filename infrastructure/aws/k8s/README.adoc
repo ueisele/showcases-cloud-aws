@@ -1,0 +1,36 @@
+= Kubernetes Terraform Install
+
+== Apply Terraform
+
+[source,bash]
+----
+terraform init -backend-config="profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform plan --var "profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform apply --var "profile=tu-dev-ueisele"
+----
+
+ToDo:
+
+[source]
+----
+resource "helm_release" "coredns" {
+  name       = "coredns"
+  repository = "https://coredns.github.io/helm"
+  chart      = "coredns"
+  version    = "1.16.5"
+
+  namespace  = "kube-system"
+
+  values = [
+    "${file("coredns-values.yaml")}"
+  ]
+}
+----

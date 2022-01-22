@@ -1,0 +1,3 @@
+= Kubernetes Examples
+
+All examples are based on the Kubernetes installation provided in the link:../../infrastructure[infrastructore] folder of this repository.

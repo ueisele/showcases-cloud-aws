@@ -152,6 +152,58 @@ resource "aws_ec2_tag" "private-subnets-eks-elb" {
 }
 
 #################################
+# EKS Fargate Profile           #
+#################################
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_fargate_profile
+resource "aws_eks_fargate_profile" "main" {
+  cluster_name           = aws_eks_cluster.main.name
+  fargate_profile_name   = "${var.environment}-${var.module}-fargate"
+  pod_execution_role_arn = aws_iam_role.eks-fargate-profile.arn
+  subnet_ids             = data.aws_subnet_ids.private.ids
+
+  selector {
+    namespace = "kube-system"
+  }
+
+  selector {
+    namespace = "default"
+  }
+
+  tags = {
+    Environment = var.environment
+    Module = var.module
+    Terraform = "true"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.eks-fargate-profile-AmazonEKSFargatePodExecutionRolePolicy,
+  ]
+}
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
+resource "aws_iam_role" "eks-fargate-profile" {
+  name = "${var.environment}-${var.module}-fargate-profile"
+
+  assume_role_policy = jsonencode({
+    Statement = [{
+      Action = "sts:AssumeRole"
+      Effect = "Allow"
+      Principal = {
+        Service = "eks-fargate-pods.amazonaws.com"
+      }
+    }]
+    Version = "2012-10-17"
+  })
+}
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
+resource "aws_iam_role_policy_attachment" "eks-fargate-profile-AmazonEKSFargatePodExecutionRolePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
+  role       = aws_iam_role.eks-fargate-profile.name
+}
+
+#################################
 # EKS Node Group                #
 #################################
 
@@ -163,12 +215,12 @@ resource "aws_eks_node_group" "main" {
   subnet_ids      = data.aws_subnet_ids.private.ids
 
   instance_types = ["t3a.large"]
-  disk_size = 30
+  disk_size = 20
 
   scaling_config {
-    desired_size = 3
     max_size     = 9
-    min_size     = 1
+    min_size     = 0
+    desired_size = 0
   }
 
   # Optional: Allow external changes without Terraform plan difference
@@ -181,6 +233,9 @@ resource "aws_eks_node_group" "main" {
   }
 
   tags = {
+    Environment = var.environment
+    Module = var.module
+    Terraform = "true"
     "k8s.io/cluster-autoscaler/enabled" = "true"
     "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
   }
@@ -189,7 +244,6 @@ resource "aws_eks_node_group" "main" {
   # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
   depends_on = [
     aws_iam_role_policy_attachment.eks-node-group-AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.eks-node-group-AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.eks-node-group-AmazonEC2ContainerRegistryReadOnly,
   ]
 }
@@ -228,12 +282,6 @@ resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEKSWorkerNodePol
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
-resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEKS_CNI_Policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.eks-node-group.name
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.eks-node-group.name
@@ -250,20 +298,7 @@ resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonSSMManagedInstan
 #################################
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
 
-# VPC-CNI
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
-resource "aws_eks_addon" "vpc-cni" {
-  cluster_name      = aws_eks_cluster.main.name
-  addon_name        = "vpc-cni"
-  resolve_conflicts = "OVERWRITE"
-  tags = {
-    eks_addon = "vpc-cni"
-    Environment = var.environment
-    Module = var.module
-    Terraform = "true"
-  }
-}
+# VPC-CNI (https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html)
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "vpn-cni-assume-role-policy" {
@@ -296,202 +331,14 @@ resource "aws_iam_role_policy_attachment" "vpn-cni-AmazonEKS_CNI_Policy" {
   role       = aws_iam_role.vpn-cni-assume-role.name
 }
 
-# EBS-CSI (https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html)
-
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
-resource "aws_eks_addon" "ebs-csi" {
-  cluster_name      = aws_eks_cluster.main.name
-  addon_name        = "aws-ebs-csi-driver"
+resource "aws_eks_addon" "vpc-cni" {
+  cluster_name             = aws_eks_cluster.main.name
+  addon_name               = "vpc-cni"
+  service_account_role_arn = aws_iam_role.vpn-cni-assume-role.arn
   resolve_conflicts = "OVERWRITE"
   tags = {
-    eks_addon = "aws-ebs-csi-driver"
-    Environment = var.environment
-    Module = var.module
-    Terraform = "true"
-  }
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
-data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    effect  = "Allow"
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(aws_iam_openid_connect_provider.eks-cluster.url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
-    }
-
-    principals {
-      identifiers = [aws_iam_openid_connect_provider.eks-cluster.arn]
-      type        = "Federated"
-    }
-  }
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
-resource "aws_iam_role" "ebs-csi-assume-role" {
-  assume_role_policy = data.aws_iam_policy_document.ebs-csi-assume-role-policy.json
-  name               = "${var.environment}-${var.module}-ebs-csi-assume-role"
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
-resource "aws_iam_role_policy_attachment" "ebs-csi-driver-policy-attachment" {
-  policy_arn = aws_iam_policy.ebs-csi-driver-policy.arn
-  role       = aws_iam_role.ebs-csi-assume-role.name
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
-resource "aws_iam_policy" "ebs-csi-driver-policy" {
-  name = "${var.environment}-${var.module}-ebs-csi-driver-policy"
-  description = "EBS CSI Driver Plugin Policy for ${var.environment}-${var.module}"
-  policy      = data.aws_iam_policy_document.ebs-csi-driver-policy-document.json
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
-data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
-  statement {
-    effect = "Allow"
-    actions = [
-      "ec2:CreateSnapshot",
-      "ec2:AttachVolume",
-      "ec2:DetachVolume",
-      "ec2:ModifyVolume",
-      "ec2:DescribeAvailabilityZones",
-      "ec2:DescribeInstances",
-      "ec2:DescribeSnapshots",
-      "ec2:DescribeTags",
-      "ec2:DescribeVolumes",
-      "ec2:DescribeVolumesModifications"
-    ]
-    resources = ["*"]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:CreateTags"]
-    resources = [
-      "arn:aws:ec2:*:*:volume/*",
-      "arn:aws:ec2:*:*:snapshot/*"
-    ]
-    condition {
-      test     = "StringEquals"
-      variable = "ec2:CreateAction"
-      values   = [
-        "CreateVolume",
-        "CreateSnapshot"
-      ]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteTags"]
-    resources = [
-      "arn:aws:ec2:*:*:volume/*",
-      "arn:aws:ec2:*:*:snapshot/*"
-    ]
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:CreateVolume"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "aws:RequestTag/ebs.csi.aws.com/cluster"
-      values   = ["true"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:CreateVolume"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "aws:RequestTag/CSIVolumeName"
-      values   = ["*"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:CreateVolume"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "aws:RequestTag/kubernetes.io/cluster/*"
-      values   = ["owned"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteVolume"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "ec2:ResourceTag/ebs.csi.aws.com/cluster"
-      values   = ["true"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteVolume"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "ec2:ResourceTag/CSIVolumeName"
-      values   = ["*"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteVolume"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "ec2:ResourceTag/kubernetes.io/cluster/*"
-      values   = ["owned"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteSnapshot"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "ec2:ResourceTag/CSIVolumeSnapshotName"
-      values   = ["*"]
-    }
-  }
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteSnapshot"]
-    resources = ["*"]
-    condition {
-      test     = "StringLike"
-      variable = "ec2:ResourceTag/ebs.csi.aws.com/cluster"
-      values   = ["true"]
-    }
-  }
-}
-
-# CoreDNS
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
-resource "aws_eks_addon" "coredns" {
-  cluster_name      = aws_eks_cluster.main.name
-  addon_name        = "coredns"
-  resolve_conflicts = "OVERWRITE"
-  tags = {
-    eks_addon = "coredns"
+    eks_addon = "vpc-cni"
     Environment = var.environment
     Module = var.module
     Terraform = "true"

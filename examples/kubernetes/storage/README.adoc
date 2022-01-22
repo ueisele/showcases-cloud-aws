@@ -1,0 +1,16 @@
+= Storace Examples
+
+[source,bash]
+----
+export NS_STORAGE=examples-storage
+kubectl create ns ${NS_STORAGE}
+----
+
+== EBS
+
+The examples for EBS CSI storage provisioner are from the link:https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/examples[aws-ebs-csi-driver] GitHub repository.
+
+[source,bash]
+----
+kubectl -n ${NS_STORAGE} apply -f ebs/gp3.yaml
+----
