@@ -17,20 +17,19 @@ terraform plan --var "profile=tu-dev-ueisele"
 terraform apply --var "profile=tu-dev-ueisele"
 ----
 
-ToDo:
+== Deployment Sizing
 
 [source]
 ----
-resource "helm_release" "coredns" {
-  name       = "coredns"
-  repository = "https://coredns.github.io/helm"
-  chart      = "coredns"
-  version    = "1.16.5"
-
-  namespace  = "kube-system"
-
-  values = [
-    "${file("coredns-values.yaml")}"
-  ]
-}
+CoreDNS				            100m	 170Mi	2	x
+EBS CSI Driver			      400m	 512Mi	1	x
+EFS CSI Driver			      400m	 512Mi	1	x
+FSx for Lustre CSI Driver	400m	 512Mi	1	x
+IAM Auth Controller		     50m	  32Mi	1	x
+LB Controller			        100m	 128Mi	1	x
+External DNS Controller		 50m	  64Mi	1	x
+Traefik Ingress           500m	 512Mi	3	x
+Kube Metrics Server		    100m	 200Mi	2	x
+Kubernetes Dashboard		  200m	 200Mi	2	x
+Cluster Autoscaler		    100m	 512Mi	1	x
 ----

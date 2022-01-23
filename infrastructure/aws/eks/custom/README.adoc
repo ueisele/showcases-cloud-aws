@@ -11,7 +11,6 @@ Run the following installations:
 
 * link:aws-eks-iam-auth-controller/README.adoc[AWS EKS IAM Auth Controller Installation]
 * link:aws-ebs-deprecated/README.adoc[Deletion of deprecated AWS EBS GP2 Storage Class]
-* link:aws-ebs-csi-driver/README.adoc[AWS EBS CSI Driver Storage Class Installation]
 * link:aws-efs-csi-driver/README.adoc[AWS EFS CSI Driver Installation]
 * link:aws-lb-controller/README.adoc[AWS Load Balancer Controller Installation]
 * link:external-dns-controller/README.adoc[External DNS Controller Installation]

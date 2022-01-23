@@ -13,4 +13,6 @@ The examples for EBS CSI storage provisioner are from the link:https://github.co
 [source,bash]
 ----
 kubectl -n ${NS_STORAGE} apply -f ebs/gp3.yaml
+kubectl -n ${NS_STORAGE} apply -f ebs/st1.yaml
+kubectl -n ${NS_STORAGE} apply -f ebs/sc1.yaml
 ----

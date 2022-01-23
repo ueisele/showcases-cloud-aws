@@ -17,3 +17,8 @@ variable "module" {
 variable "route53_public_main_zone" {
   default = "aws.uweeisele.dev"
 }
+
+variable "eks_cluster_dns_ip" {
+  default = "172.20.0.10"
+  description = "'cluster-dns-ip' setting of instance template user data"
+}

@@ -156,15 +156,11 @@ resource "aws_ec2_tag" "private-subnets-eks-elb" {
 #################################
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_fargate_profile
-resource "aws_eks_fargate_profile" "main" {
+resource "aws_eks_fargate_profile" "default" {
   cluster_name           = aws_eks_cluster.main.name
-  fargate_profile_name   = "${var.environment}-${var.module}-fargate"
+  fargate_profile_name   = "${var.environment}-${var.module}-default"
   pod_execution_role_arn = aws_iam_role.eks-fargate-profile.arn
   subnet_ids             = data.aws_subnet_ids.private.ids
-
-  selector {
-    namespace = "kube-system"
-  }
 
   selector {
     namespace = "default"
@@ -204,17 +200,70 @@ resource "aws_iam_role_policy_attachment" "eks-fargate-profile-AmazonEKSFargateP
 }
 
 #################################
-# EKS Node Group                #
+# EKS Node Groups               #
 #################################
+
+# System Node Group
+
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_node_group
+resource "aws_eks_node_group" "system" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${aws_eks_cluster.main.name}-system"
+  node_role_arn   = aws_iam_role.eks-node-group.arn
+  subnet_ids      = data.aws_subnet_ids.private.ids
+
+  ami_type = "BOTTLEROCKET_ARM_64"
+  instance_types = ["t4g.small"]
+  disk_size = 20
+
+  scaling_config {
+    max_size     = 9
+    min_size     = 1
+    desired_size = 3
+  }
+
+  # Optional: Allow external changes without Terraform plan difference
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
+  }
+
+  update_config {
+    max_unavailable = 2
+  }
+
+  taint {
+    key = "system"
+    value = "true"
+    effect = "NO_SCHEDULE"
+  }
+
+  tags = {
+    Environment = var.environment
+    Module = var.module
+    Terraform = "true"
+    "k8s.io/cluster-autoscaler/enabled" = "true"
+    "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
+  }
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks-node-group-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.eks-node-group-AmazonEC2ContainerRegistryReadOnly,
+  ]
+}
+
+# Main
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_node_group
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${var.environment}-${var.module}-main"
+  node_group_name = "${aws_eks_cluster.main.name}-main"
   node_role_arn   = aws_iam_role.eks-node-group.arn
   subnet_ids      = data.aws_subnet_ids.private.ids
 
-  instance_types = ["t3a.large"]
+  ami_type = "BOTTLEROCKET_x86_64"
+  instance_types = ["t3a.medium"]
   disk_size = 20
 
   scaling_config {

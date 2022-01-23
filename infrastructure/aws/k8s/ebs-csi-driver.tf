@@ -2,6 +2,160 @@
 # EBS CSI                       #
 #################################
 # https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html
+# https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
+
+resource "helm_release" "aws-ebs-csi-driver" {
+  name       = "aws-ebs-csi-driver"
+  repository = "https://kubernetes-sigs.github.io/aws-ebs-csi-driver"
+  chart      = "aws-ebs-csi-driver"
+  version    = "2.6.2"
+
+  namespace  = "kube-system"
+
+  set {
+    name = "fullnameOverride"
+    value = "ebs-csi-controller"
+  }
+
+  values = [yamlencode({
+    controller = {
+      replicaCount = 1
+
+      resources = {
+        limits = {
+          cpu = "100m"
+          memory = "128Mi"
+        }
+        requests = {
+          cpu = "100m"
+          memory = "128Mi"
+        }
+      }
+
+      serviceAccount = {
+        create = true
+        name = "ebs-csi-controller-sa"
+        annotations = {
+          "eks.amazonaws.com/role-arn" = aws_iam_role.ebs-csi-assume-role.arn
+        }
+      }
+
+      tolerations = [{
+        key = "system"
+        operator = "Equal"
+        value = "true"
+        effect = "NoSchedule"
+      }]
+
+      affinity = {
+        nodeAffinity = {
+          requiredDuringSchedulingIgnoredDuringExecution = {
+            nodeSelectorTerms = [{
+              matchExpressions = [
+                {
+                  key = "eks.amazonaws.com/nodegroup"
+                  operator = "In"
+                  values = [local.eks_cluster_system_node_group_name]
+                },
+                {
+                  key = "kubernetes.io/os"
+                  operator = "In"
+                  values = ["linux"]
+                },
+                {
+                  key = "kubernetes.io/arch"
+                  operator = "In"
+                  values = ["amd64","arm64"]
+                }
+              ]
+            }]
+          }
+        }
+        podAntiAffinity = {
+          preferredDuringSchedulingIgnoredDuringExecution = [
+            {
+              podAffinityTerm = {
+                labelSelector = {
+                  matchExpressions = [{
+                    key = "app"
+                    operator = "In"
+                    values = ["ebs-csi-controller"]
+                  }]
+                }
+                topologyKey = "kubernetes.io/hostname"
+              }
+              weight = 100
+            },
+            {
+              podAffinityTerm = {
+                labelSelector = {
+                  matchExpressions = [{
+                    key = "app"
+                    operator = "In"
+                    values = ["ebs-csi-controller"]
+                  }]
+                }
+                topologyKey = "failure-domain.beta.kubernetes.io/zone"
+              }
+              weight = 100
+            }
+          ]
+        }
+      }
+    }
+
+    node = {
+      tolerateAllTaints = true
+    }
+  })]
+}
+
+resource "kubernetes_storage_class_v1" "gp3" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = true
+    }
+  }
+  storage_provisioner     = "ebs.csi.aws.com"
+  volume_binding_mode     = "WaitForFirstConsumer"
+  reclaim_policy          = "Delete"
+  allow_volume_expansion  = true
+  parameters = {
+    type = "gp3"
+    "csi.storage.k8s.io/fstype" = "ext4"
+    #iops = "3000"
+    #throughput = "125"
+  }
+}
+
+resource "kubernetes_storage_class_v1" "st1" {
+  metadata {
+    name = "st1"
+  }
+  storage_provisioner     = "ebs.csi.aws.com"
+  volume_binding_mode     = "WaitForFirstConsumer"
+  reclaim_policy          = "Delete"
+  allow_volume_expansion  = true
+  parameters = {
+    type = "st1"
+    "csi.storage.k8s.io/fstype" = "ext4"
+  }
+}
+
+resource "kubernetes_storage_class_v1" "sc1" {
+  metadata {
+    name = "sc1"
+  }
+  storage_provisioner     = "ebs.csi.aws.com"
+  volume_binding_mode     = "WaitForFirstConsumer"
+  reclaim_policy          = "Delete"
+  allow_volume_expansion  = true
+  parameters = {
+    type = "sc1"
+    "csi.storage.k8s.io/fstype" = "ext4"
+  }
+}
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
@@ -175,6 +329,10 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 }
 
+## EBS CSI EKS Addon
+# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
+# Cannot be used, because EKS add-ons do not support tolerations
+/*
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
 resource "aws_eks_addon" "ebs-csi" {
   cluster_name      = data.aws_eks_cluster.main.name
@@ -188,3 +346,4 @@ resource "aws_eks_addon" "ebs-csi" {
     Terraform = "true"
   }
 }
+*/

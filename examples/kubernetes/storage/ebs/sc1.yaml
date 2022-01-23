@@ -2,19 +2,19 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ebs-gp3-readwriteonce-claim
+  name: ebs-sc1-readwriteonce-claim
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: gp3
+  storageClassName: sc1
   resources:
     requests:
-      storage: 4Gi
+      storage: 125Gi # minimum storage volume for sc1
 ---
 apiVersion: v1
 kind: Pod
 metadata:
-  name: ebs-gp3-app
+  name: ebs-sc1-app
 spec:
   containers:
   - name: app
@@ -27,4 +27,4 @@ spec:
   volumes:
   - name: persistent-storage
     persistentVolumeClaim:
-      claimName: ebs-gp3-readwriteonce-claim
+      claimName: ebs-sc1-readwriteonce-claim
