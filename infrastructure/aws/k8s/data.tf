@@ -11,6 +11,18 @@ data "aws_eks_cluster_auth" "main" {
   name = "${var.environment}-${var.module}"
 }
 
+data "aws_iam_role" "eks-node-group" {
+  name = "${var.environment}-${var.module}-node-group"
+}
+
+data "aws_iam_role" "eks-fargate-profile" {
+  name = "${var.environment}-${var.module}-fargate-profile"
+}
+
+data "aws_iam_role" "k8sadmin" {
+  name = "${var.environment}-${var.module}-k8sadmin"
+}
+
 locals {
   partition                                 = data.aws_partition.current.id
   account_id                                = data.aws_caller_identity.current.account_id

@@ -33,3 +33,68 @@ Kube Metrics Server		    100m	 200Mi	2	x
 Kubernetes Dashboard		  200m	 200Mi	2	x
 Cluster Autoscaler		    100m	 512Mi	1	x
 ----
+
+== Components
+
+=== CoreDNS
+
+=== EBS CSI Driver
+
+=== EKS IAM Auth Controller
+
+https://github.com/rustrial/aws-eks-iam-auth-controller
+
+AWS EKS uses the link:https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html[aws-auth] ConfigMap in the kube-system namespace to map authenticated identities to Kubernetes username and groups (also see https://www.eksworkshop.com/beginner/091_iam-groups/test-cluster-access/).
+
+You could authorize users and roles by manually modyfing the aws-auth ConfigMap:
+
+.aws-auth.yaml
+[source,yaml]
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aws-auth
+  namespace: kube-system
+data:
+  mapRoles: |
+    - groups:
+      - system:bootstrappers
+      - system:nodes
+      - system:node-proxier
+      rolearn: ${EKS_FARGATE_PROFILE_ROLE_ARN}
+      username: system:node:{{SessionName}}
+    - groups:
+      - system:bootstrappers
+      - system:nodes
+      rolearn: ${EKS_NODE_GROUP_ROLE_ARN}
+      username: system:node:{{EC2PrivateDNSName}}
+    - groups:
+      - system:masters
+      rolearn: ${K8SADMIN_ROLE_ARN}
+      username: admin
+  mapUsers: |
+    - groups:
+      - system:masters
+      userarn: arn:aws:iam::${ACCOUNT_ID}:user/ueisele
+      username: admin
+----
+
+[source,bash]
+----
+envsubst < aws-auth.yaml | kubectl apply -f -
+----
+
+However, using a single ConfigMap makes it hard and error prone to manage identity mappings using GitOps approach.
+
+The link:https://github.com/rustrial/aws-eks-iam-auth-controller[EKS IAM Auth Controller] closes the gap by implementing a Custom Resource Controller, updating the aws-auth ConfigMap from IAMIdentityMapping objects. Once link:https://github.com/aws/containers-roadmap/issues/550[#550] or link:https://github.com/aws/containers-roadmap/issues/512[#512] is resolved this controller will no longer be needed.
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add aws-eks-iam-auth-controller https://rustrial.github.io/aws-eks-iam-auth-controller
+helm repo update
+helm search repo aws-eks-iam-auth-controller
+helm show values aws-eks-iam-auth-controller/rustrial-aws-eks-iam-auth-controller
+----

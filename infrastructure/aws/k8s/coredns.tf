@@ -17,6 +17,11 @@ resource "helm_release" "coredns" {
   }
 
   set {
+    name = "nameOverride"
+    value = "coredns"
+  }
+
+  set {
     name = "image.tag"
     value = "1.8.7"
   }
@@ -50,11 +55,11 @@ resource "helm_release" "coredns" {
     resources = {
       limits = {
         cpu = "100m"
-        memory = "170Mi"
+        memory = "192Mi"
       }
       requests = {
         cpu = "100m"
-        memory = "100Mi"
+        memory = "128Mi"
       }
     }
 
@@ -95,7 +100,7 @@ resource "helm_release" "coredns" {
             podAffinityTerm = {
               labelSelector = {
                 matchExpressions = [{
-                  key = "k8s-app"
+                  key = "app.kubernetes.io/name"
                   operator = "In"
                   values = ["coredns"]
                 }]
@@ -108,7 +113,7 @@ resource "helm_release" "coredns" {
             podAffinityTerm = {
               labelSelector = {
                 matchExpressions = [{
-                  key = "k8s-app"
+                  key = "app.kubernetes.io/name"
                   operator = "In"
                   values = ["coredns"]
                 }]

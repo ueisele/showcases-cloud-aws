@@ -4,8 +4,10 @@
 # https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
 
-resource "helm_release" "aws-ebs-csi-driver" {
-  name       = "aws-ebs-csi-driver"
+## Driver Helm Chart
+
+resource "helm_release" "ebs-csi-driver" {
+  name       = "ebs-csi-driver"
   repository = "https://kubernetes-sigs.github.io/aws-ebs-csi-driver"
   chart      = "aws-ebs-csi-driver"
   version    = "2.6.2"
@@ -14,6 +16,11 @@ resource "helm_release" "aws-ebs-csi-driver" {
 
   set {
     name = "fullnameOverride"
+    value = "ebs-csi-controller"
+  }
+
+  set {
+    name = "nameOverride"
     value = "ebs-csi-controller"
   }
 
@@ -77,7 +84,7 @@ resource "helm_release" "aws-ebs-csi-driver" {
               podAffinityTerm = {
                 labelSelector = {
                   matchExpressions = [{
-                    key = "app"
+                    key = "app.kubernetes.io/name"
                     operator = "In"
                     values = ["ebs-csi-controller"]
                   }]
@@ -90,7 +97,7 @@ resource "helm_release" "aws-ebs-csi-driver" {
               podAffinityTerm = {
                 labelSelector = {
                   matchExpressions = [{
-                    key = "app"
+                    key = "app.kubernetes.io/name"
                     operator = "In"
                     values = ["ebs-csi-controller"]
                   }]
@@ -109,6 +116,8 @@ resource "helm_release" "aws-ebs-csi-driver" {
     }
   })]
 }
+
+## Storage Classes
 
 resource "kubernetes_storage_class_v1" "gp3" {
   metadata {
@@ -156,6 +165,8 @@ resource "kubernetes_storage_class_v1" "sc1" {
     "csi.storage.k8s.io/fstype" = "ext4"
   }
 }
+
+## IRSA
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {

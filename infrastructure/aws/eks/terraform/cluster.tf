@@ -199,6 +199,10 @@ resource "aws_iam_role_policy_attachment" "eks-fargate-profile-AmazonEKSFargateP
   role       = aws_iam_role.eks-fargate-profile.name
 }
 
+output "eks-fargate-profile-role-arn" {
+  value = aws_iam_role.eks-fargate-profile.arn
+}
+
 #################################
 # EKS Node Groups               #
 #################################
@@ -320,10 +324,6 @@ resource "aws_iam_role" "eks-node-group" {
   }
 }
 
-output "eks-node-group-role-arn" {
-  value = aws_iam_role.eks-node-group.arn
-}
-
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
@@ -340,6 +340,10 @@ resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEC2ContainerRegi
 resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonSSMManagedInstanceCore" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   role       = aws_iam_role.eks-node-group.name
+}
+
+output "eks-node-group-role-arn" {
+  value = aws_iam_role.eks-node-group.arn
 }
 
 #################################
