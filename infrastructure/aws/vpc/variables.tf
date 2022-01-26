@@ -19,26 +19,31 @@ variable "vpc_cidr" {
 }
 
 variable "azs" {
-  type        = list(string)
-  default     = ["eu-central-1a", "eu-central-1b", "eu-central-1c"]
+  type    = list(string)
+  default = ["eu-central-1a", "eu-central-1b", "eu-central-1c"]
 }
 
 variable "public_subnets" {
-  type        = list(string)
-  default     = ["10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"]
+  type    = list(string)
+  default = ["10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"]
 }
 
 variable "public_subnet_ipv6_prefixes" {
-  type        = list(number)
-  default     = [0, 1, 2]
+  type    = list(number)
+  default = [0, 1, 2]
 }
 
 variable "private_subnets" {
-  type        = list(string)
-  default     = ["10.0.3.0/24", "10.0.4.0/24", "10.0.5.0/24"]
+  type    = list(string)
+  default = ["10.0.3.0/24", "10.0.4.0/24", "10.0.5.0/24"]
 }
 
 variable "private_subnet_ipv6_prefixes" {
-  type        = list(number)
-  default     = [3, 4, 5]
+  type    = list(number)
+  default = [3, 4, 5]
+}
+
+variable "nat_gateway_count" {
+  default = 1
+    desdescription = "Only one by default to save money"
 }
