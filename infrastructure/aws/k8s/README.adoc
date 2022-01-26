@@ -169,9 +169,9 @@ Therefore, we need to create an IngressClass resource that contains additional c
 The IngressClass is named `alb` and is defined as default.
 So, after the IngressClass has been deployed, all created Ingress resources are managed by the AWS Load Balancer Controller.
 
-The IngressClass sets [`scheme`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/#specscheme) to `internal`, because in the K+N VPC, we have no public IP addresses.
+The IngressClass sets link:https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/#specscheme[`scheme`] to `internal`, because in the K+N VPC, we have no public IP addresses.
 
-In addition, it sets [`group`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/#specgroup) to `default`, to add all Ingresses to the same AWS ALB.
+In addition, it sets link:https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/#specgroup[`group`] to `default`, to add all Ingresses to the same AWS ALB.
 
 .Verify that the IngressClass has been created
 [source,bash]
