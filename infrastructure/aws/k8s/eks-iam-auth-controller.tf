@@ -3,10 +3,6 @@
 #################################
 # https://github.com/rustrial/aws-eks-iam-auth-controller
 
-## Controller Helm Chart
-# Check for latest version:
-#   helm search repo aws-eks-iam-auth-controller
-
 resource "helm_release" "eks-iam-auth-controller" {
   name       = "eks-iam-auth-controller"
   repository = "https://rustrial.github.io/aws-eks-iam-auth-controller"
@@ -102,7 +98,9 @@ resource "helm_release" "eks-iam-auth-controller" {
   })]
 }
 
-## IAM Identity Mappings
+#################################
+# IAM Identity Mappings         #
+#################################
 # kubernetes_manifest resource cannot be used because of
 # https://github.com/hashicorp/terraform-provider-kubernetes/pull/1506
 

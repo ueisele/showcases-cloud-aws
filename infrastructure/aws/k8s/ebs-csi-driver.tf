@@ -5,8 +5,6 @@
 # https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
 
-## Driver Helm Chart
-
 resource "helm_release" "ebs-csi-driver" {
   name       = "ebs-csi-driver"
   repository = "https://kubernetes-sigs.github.io/aws-ebs-csi-driver"
@@ -118,9 +116,10 @@ resource "helm_release" "ebs-csi-driver" {
   })]
 }
 
-## IRSA
+#################################
+# IRSA                       #
+#################################
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -139,26 +138,22 @@ data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
 resource "aws_iam_role" "ebs-csi-assume-role" {
   assume_role_policy = data.aws_iam_policy_document.ebs-csi-assume-role-policy.json
   name               = "${var.environment}-${var.module}-ebs-csi-assume-role"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "ebs-csi-driver-policy-attachment" {
   policy_arn = aws_iam_policy.ebs-csi-driver-policy.arn
   role       = aws_iam_role.ebs-csi-assume-role.name
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
 resource "aws_iam_policy" "ebs-csi-driver-policy" {
   name = "${var.environment}-${var.module}-ebs-csi-driver-policy"
   description = "EBS CSI Driver Plugin Policy for ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.ebs-csi-driver-policy-document.json
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   statement {
     effect = "Allow"
@@ -292,6 +287,10 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 }
 
+#################################
+# Storage Classes               #
+#################################
+
 ## Update existing gp2 storage class
 
 resource "kubectl_manifest" "gp2" {
@@ -359,7 +358,9 @@ resource "kubernetes_storage_class_v1" "sc1" {
   }
 }
 
-## EBS CSI EKS Addon
+#################################
+# EBS CSI EKS Addon             #
+#################################
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
 # Cannot be used, because EKS add-ons do not support tolerations
 /*
