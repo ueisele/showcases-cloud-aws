@@ -1,20 +1,14 @@
 = Storace Examples
 
-[source,bash]
-----
-export NS_STORAGE=examples-storage
-kubectl create ns ${NS_STORAGE}
-----
-
 == EBS
 
 The examples for EBS CSI storage provisioner are from the link:https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/examples[aws-ebs-csi-driver] GitHub repository.
 
 [source,bash]
 ----
-kubectl -n ${NS_STORAGE} apply -f ebs/gp3.yaml
-kubectl -n ${NS_STORAGE} apply -f ebs/st1.yaml
-kubectl -n ${NS_STORAGE} apply -f ebs/sc1.yaml
+kubectl -n ${NS_EXAMPLES} apply -f ebs/gp3.yaml
+kubectl -n ${NS_EXAMPLES} apply -f ebs/st1.yaml
+kubectl -n ${NS_EXAMPLES} apply -f ebs/sc1.yaml
 ----
 
 == EFS
@@ -23,23 +17,23 @@ The examples for EFS CSI storage provisioner are from the link:https://github.co
 
 [source,bash]
 ----
-kubectl -n ${NS_STORAGE} apply -f efs/efs-dynamic.yaml
+kubectl -n ${NS_EXAMPLES} apply -f efs/efs-dynamic.yaml
 ----
 
 [source,bash]
 ----
-kubectl -n ${NS_STORAGE} apply -f efs/efs-statefulset-shared.yaml
+kubectl -n ${NS_EXAMPLES} apply -f efs/efs-statefulset-shared.yaml
 ----
 
 [source,bash]
 ----
-kubectl -n ${NS_STORAGE} apply -f efs/efs-statefulset-volumeclaimtemplate.yaml
+kubectl -n ${NS_EXAMPLES} apply -f efs/efs-statefulset-volumeclaimtemplate.yaml
 ----
 
 [source,bash]
 ----
-kubectl -n ${NS_STORAGE} delete -f efs/efs-statefulset-volumeclaimtemplate.yaml
-kubectl -n ${NS_STORAGE} delete pvc -l app=efs-statefulset-volumeclaimtemplate-app
+kubectl -n ${NS_EXAMPLES} delete -f efs/efs-statefulset-volumeclaimtemplate.yaml
+kubectl -n ${NS_EXAMPLES} delete pvc -l app=efs-statefulset-volumeclaimtemplate-app
 ----
 
 == EFS on Fargate

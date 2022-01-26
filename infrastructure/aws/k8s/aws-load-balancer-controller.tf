@@ -1,4 +1,139 @@
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
+#################################
+# AWS Load Balancer Controller  #
+#################################
+# https://kubernetes-sigs.github.io/aws-load-balancer-controller
+
+resource "helm_release" "aws-load-balancer-controller" {
+  name       = "aws-load-balancer-controller"
+  repository = "https://aws.github.io/eks-charts"
+  chart      = "aws-load-balancer-controller"
+  version    = "1.3.3"
+
+  namespace  = "kube-system"
+
+  set {
+    name = "fullnameOverride"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name = "nameOverride"
+    value = "aws-load-balancer-controller"
+  }
+
+  set {
+    name = "region"
+    value = data.aws_region.current.name
+  }
+
+  set {
+    name = "clusterName"
+    value = data.aws_eks_cluster.main.name
+  }
+
+  set {
+    name = "vpcId"
+    value = data.aws_vpc.main.id
+  }
+
+  values = [yamlencode({
+    replicaCount = 1
+
+    serviceAccount = {
+      create = true
+      name = "aws-load-balancer-controller-sa"
+      annotations = {
+        "eks.amazonaws.com/role-arn" = aws_iam_role.aws-lb-controller-assume-role.arn
+      }
+    }
+
+    ingressClass = "alb"
+    createIngressClassResource = false
+
+    enableShield = false
+    enableWaf = false
+    enableWafv2 = false
+
+    resources = {
+      limits = {
+        cpu = "100m"
+        memory = "128Mi"
+      }
+      requests = {
+        cpu = "100m"
+        memory = "128Mi"
+      }
+    }
+
+    tolerations = [{
+      key = "system"
+      operator = "Equal"
+      value = "true"
+      effect = "NoSchedule"
+    }]
+
+    affinity = {
+      nodeAffinity = {
+        requiredDuringSchedulingIgnoredDuringExecution = {
+          nodeSelectorTerms = [{
+            matchExpressions = [
+              {
+                key = "eks.amazonaws.com/nodegroup"
+                operator = "In"
+                values = [local.eks_cluster_system_node_group_name]
+              },
+              {
+                key = "kubernetes.io/os"
+                operator = "In"
+                values = ["linux"]
+              },
+              {
+                key = "kubernetes.io/arch"
+                operator = "In"
+                values = ["amd64","arm64"]
+              }
+            ]
+          }]
+        }
+      }
+      podAntiAffinity = {
+        preferredDuringSchedulingIgnoredDuringExecution = [
+          {
+            podAffinityTerm = {
+              labelSelector = {
+                matchExpressions = [{
+                  key = "app.kubernetes.io/name"
+                  operator = "In"
+                  values = ["aws-load-balancer-controller"]
+                }]
+              }
+              topologyKey = "kubernetes.io/hostname"
+            }
+            weight = 100
+          },
+          {
+            podAffinityTerm = {
+              labelSelector = {
+                matchExpressions = [{
+                  key = "app.kubernetes.io/name"
+                  operator = "In"
+                  values = ["aws-load-balancer-controller"]
+                }]
+              }
+              topologyKey = "failure-domain.beta.kubernetes.io/zone"
+            }
+            weight = 100
+          }
+        ]
+      }
+    }
+  })]
+}
+
+#################################
+# ISRA                          #
+#################################
+
 data "aws_iam_policy_document" "aws-lb-controller-assume-role-policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -6,37 +141,33 @@ data "aws_iam_policy_document" "aws-lb-controller-assume-role-policy" {
 
     condition {
       test     = "StringEquals"
-      variable = "${replace(aws_iam_openid_connect_provider.eks-cluster.url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
+      variable = "${local.iam_openid_connect_provider_url_stripped}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller-sa"]
     }
 
     principals {
-      identifiers = [aws_iam_openid_connect_provider.eks-cluster.arn]
+      identifiers = [local.iam_openid_connect_provider_arn]
       type        = "Federated"
     }
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
 resource "aws_iam_role" "aws-lb-controller-assume-role" {
   assume_role_policy = data.aws_iam_policy_document.aws-lb-controller-assume-role-policy.json
   name               = "${var.environment}-${var.module}-aws-lb-controller-assume-role"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "aws-lb-controller" {
   policy_arn = aws_iam_policy.aws-lb-controller.arn
   role       = aws_iam_role.aws-lb-controller-assume-role.name
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
 resource "aws_iam_policy" "aws-lb-controller" {
   name = "${var.environment}-${var.module}-aws-lb-controller"
   description = "EKS AWS Load Balancer Controller for Cluster ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.aws-lb-controller.json
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
@@ -272,6 +403,46 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   }
 }
 
-output "aws-load-balancer-controller-role-arn" {
-  value = aws_iam_role.aws-lb-controller-assume-role.arn
+#################################
+# Ingress Class                 #
+#################################
+# https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/
+
+resource "kubectl_manifest" "ingressclassparams-alb" {
+  yaml_body  = <<-EOF
+    apiVersion: elbv2.k8s.aws/v1beta1
+    kind: IngressClassParams
+    metadata:
+      name: alb
+      annotations:
+        terraform: "true"
+    spec:
+      group:
+        name: default
+      ipAddressType: dualstack
+      scheme: internet-facing
+    EOF
+
+  // Requires IngressClassParams CRD 
+  depends_on = [helm_release.aws-load-balancer-controller]
+}
+
+resource "kubernetes_ingress_class_v1" "alb" {
+  metadata {
+    name = "alb"
+    annotations = {
+      "ingressclass.kubernetes.io/is-default-class" = "false"
+      terraform = "true"
+    }
+  }
+  spec {
+    controller = "ingress.k8s.aws/alb"
+    parameters {
+      api_group = "elbv2.k8s.aws"
+      kind      = "IngressClassParams"
+      name      = kubectl_manifest.ingressclassparams-alb.name
+    }
+  }
+
+  depends_on = [kubectl_manifest.ingressclassparams-alb]
 }

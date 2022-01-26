@@ -9,14 +9,5 @@ aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name 
 
 Run the following installations:
 
-* link:aws-lb-controller/README.adoc[AWS Load Balancer Controller Installation]
 * link:external-dns-controller/README.adoc[External DNS Controller Installation]
 * link:traefik-ingress-controller/README.adoc[Traefik Ingress Controller Installation]
-
-== Next Steps
-
-* Kubernetes Metrics Server: https://github.com/kubernetes-sigs/metrics-server
-* Kubernetes Dashboard: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
-* Cluster Autoscaler: https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
-* Security Groups for Pods: https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
-* Network Isolation with Calico: https://docs.aws.amazon.com/eks/latest/userguide/calico.html

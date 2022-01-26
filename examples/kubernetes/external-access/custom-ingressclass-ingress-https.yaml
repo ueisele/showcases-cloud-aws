@@ -8,7 +8,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
   name: nginx-hello-ingressclass-https
 spec:
-  ingressClassName: custom-aws-alb
+  ingressClassName: custom-alb
   rules:
   - host: nginx-hello.showcase.aws.uweeisele.dev
     http:

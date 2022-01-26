@@ -1,4 +1,9 @@
-= Kubernetes Terraform Install
+:toc:
+:toc-title:
+:toclevels: 2
+:sectnums:
+
+= Kubernetes Terraform Provisioning
 
 == Apply Terraform
 
@@ -143,3 +148,51 @@ helm repo update
 helm search repo aws-efs-csi-driver
 helm show values aws-efs-csi-driver/aws-efs-csi-driver
 ----
+
+=== AWS Load Balancer Controller
+
+https://kubernetes-sigs.github.io/aws-load-balancer-controller
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+helm search repo eks
+helm show values eks/aws-load-balancer-controller
+----
+
+The AWS Load Balancer Controller is configured with auto discovery. It automatically scales all EKS node groups with the following tags:
+
+[source,yaml]
+----
+k8s.io/cluster-autoscaler/enabled: "true"
+k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}: "owned"
+----
+
+The AWS Load Balancer Controller is a provider for Ingress. Ingresses can be implemented by different controllers, often with different configuration.
+
+Therefore, we need to create an IngressClass resource that contains additional configuration including the name of the controller that should implement the class (also see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/).
+
+The IngressClass is named `alb` and is defined as default.
+So, after the IngressClass has been deployed, all created Ingress resources are managed by the AWS Load Balancer Controller.
+
+The IngressClass sets [`scheme`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/#specscheme) to `internal`, because in the K+N VPC, we have no public IP addresses.
+
+In addition, it sets [`group`](https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/#specgroup) to `default`, to add all Ingresses to the same AWS ALB.
+
+.Verify that the IngressClass has been created
+[source,bash]
+----
+kubectl get ingressClassParams alb
+kubectl get ingressClass alb
+----
+
+== Next Steps
+
+* Kubernetes Metrics Server: https://github.com/kubernetes-sigs/metrics-server
+* Kubernetes Dashboard: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+* Cluster Autoscaler: https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
+* Security Groups for Pods: https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
+* Network Isolation with Calico: https://docs.aws.amazon.com/eks/latest/userguide/calico.html

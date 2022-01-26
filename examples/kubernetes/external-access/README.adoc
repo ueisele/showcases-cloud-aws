@@ -30,10 +30,10 @@ alb.ingress.kubernetes.io/target-type: ip
 alb.ingress.kubernetes.io/healthcheck-path: /
 ----
 
-The annotation `link:https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/annotations/#target-type[alb.ingress.kubernetes.io/target-type]: ip` specifies, that the traffic is routed directly to the individual pods. This is the prevered approach for AWS EKS, because every Pod has a reachable IP address.
+The annotation `link:https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/#target-type[alb.ingress.kubernetes.io/target-type]: ip` specifies, that the traffic is routed directly to the individual pods. This is the prevered approach for AWS EKS, because every Pod has a reachable IP address.
 The AWS Load Balancer Controller automatically adjusts the AWS target group, if a Pod is added or removed.
 
-You find a complete overview about all allowed annotations on the link:https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.2/guide/ingress/annotations/[AWS Load Balancer Controller Guide].
+You find a complete overview about all allowed annotations on the link:https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/annotations/[AWS Load Balancer Controller Guide].
 
 === HTTP
 

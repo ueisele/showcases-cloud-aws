@@ -24,7 +24,7 @@ metadata:
     alb.ingress.kubernetes.io/auth-idp-cognito: '{"UserPoolArn": "arn:aws:cognito-idp:eu-central-1:${ACCOUNT_ID}:userpool/${USER_POOL_ID}","UserPoolClientId":"${CLIENT_ID}","UserPoolDomain":"${USER_POOL_DOMAIN}"}'    
   name: nginx-hello-https
 spec:
-  ingressClassName: aws-alb
+  ingressClassName: alb
   rules:
   - host: nginx-hello.showcase.aws.uweeisele.dev
     http:

@@ -10,7 +10,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /
   name: nginx-hello-https
 spec:
-  ingressClassName: aws-alb
+  ingressClassName: alb
   rules:
   - host: nginx-hello.showcase.aws.uweeisele.dev
     http:

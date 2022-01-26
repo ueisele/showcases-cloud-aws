@@ -1,3 +1,10 @@
 = Kubernetes Examples
 
 All examples are based on the Kubernetes installation provided in the link:../../infrastructure[infrastructure] folder of this repository.
+
+.Create namespace for examples
+[source,bash]
+----
+export NS_EXAMPLES=examples-$(whoami)
+kubectl create ns ${NS_EXAMPLES}
+----
