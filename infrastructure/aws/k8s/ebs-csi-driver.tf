@@ -1,6 +1,7 @@
 #################################
 # EBS CSI                       #
 #################################
+# https://github.com/kubernetes-sigs/aws-ebs-csi-driver
 # https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
 
@@ -115,55 +116,6 @@ resource "helm_release" "ebs-csi-driver" {
       tolerateAllTaints = true
     }
   })]
-}
-
-## Storage Classes
-
-resource "kubernetes_storage_class_v1" "gp3" {
-  metadata {
-    name = "gp3"
-    annotations = {
-      "storageclass.kubernetes.io/is-default-class" = true
-    }
-  }
-  storage_provisioner     = "ebs.csi.aws.com"
-  volume_binding_mode     = "WaitForFirstConsumer"
-  reclaim_policy          = "Delete"
-  allow_volume_expansion  = true
-  parameters = {
-    type = "gp3"
-    "csi.storage.k8s.io/fstype" = "ext4"
-    #iops = "3000"
-    #throughput = "125"
-  }
-}
-
-resource "kubernetes_storage_class_v1" "st1" {
-  metadata {
-    name = "st1"
-  }
-  storage_provisioner     = "ebs.csi.aws.com"
-  volume_binding_mode     = "WaitForFirstConsumer"
-  reclaim_policy          = "Delete"
-  allow_volume_expansion  = true
-  parameters = {
-    type = "st1"
-    "csi.storage.k8s.io/fstype" = "ext4"
-  }
-}
-
-resource "kubernetes_storage_class_v1" "sc1" {
-  metadata {
-    name = "sc1"
-  }
-  storage_provisioner     = "ebs.csi.aws.com"
-  volume_binding_mode     = "WaitForFirstConsumer"
-  reclaim_policy          = "Delete"
-  allow_volume_expansion  = true
-  parameters = {
-    type = "sc1"
-    "csi.storage.k8s.io/fstype" = "ext4"
-  }
 }
 
 ## IRSA
@@ -337,6 +289,73 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
       variable = "ec2:ResourceTag/ebs.csi.aws.com/cluster"
       values   = ["true"]
     }
+  }
+}
+
+## Update existing gp2 storage class
+
+resource "kubectl_manifest" "gp2" {
+  yaml_body  = <<-EOF
+    apiVersion: storage.k8s.io/v1
+    kind: StorageClass
+    metadata:
+      name: gp2
+    parameters:
+      fsType: ext4
+      type: gp2
+    provisioner: kubernetes.io/aws-ebs
+    reclaimPolicy: Delete
+    volumeBindingMode: WaitForFirstConsumer
+    allowVolumeExpansion: true
+    EOF
+}
+
+## New Storage Classes
+
+resource "kubernetes_storage_class_v1" "gp3" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = true
+    }
+  }
+  storage_provisioner     = "ebs.csi.aws.com"
+  volume_binding_mode     = "WaitForFirstConsumer"
+  reclaim_policy          = "Delete"
+  allow_volume_expansion  = true
+  parameters = {
+    type = "gp3"
+    "csi.storage.k8s.io/fstype" = "ext4"
+    #iops = "3000"
+    #throughput = "125"
+  }
+}
+
+resource "kubernetes_storage_class_v1" "st1" {
+  metadata {
+    name = "st1"
+  }
+  storage_provisioner     = "ebs.csi.aws.com"
+  volume_binding_mode     = "WaitForFirstConsumer"
+  reclaim_policy          = "Delete"
+  allow_volume_expansion  = true
+  parameters = {
+    type = "st1"
+    "csi.storage.k8s.io/fstype" = "ext4"
+  }
+}
+
+resource "kubernetes_storage_class_v1" "sc1" {
+  metadata {
+    name = "sc1"
+  }
+  storage_provisioner     = "ebs.csi.aws.com"
+  volume_binding_mode     = "WaitForFirstConsumer"
+  reclaim_policy          = "Delete"
+  allow_volume_expansion  = true
+  parameters = {
+    type = "sc1"
+    "csi.storage.k8s.io/fstype" = "ext4"
   }
 }
 

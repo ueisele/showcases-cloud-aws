@@ -40,6 +40,27 @@ Cluster Autoscaler		    100m	 512Mi	1	x
 
 === EBS CSI Driver
 
+https://github.com/kubernetes-sigs/aws-ebs-csi-driver
+
+The EBS in-tree storage plugin, `kubernetes.io/aws-ebs` has been deprecated in favour of the `ebs.csi.aws.com` CSI driver.
+
+.Default gp2 storage class
+[source,yaml]
+----
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  name: gp2
+parameters:
+  fsType: ext4
+  type: gp2
+provisioner: kubernetes.io/aws-ebs
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+----
+
 === EKS IAM Auth Controller
 
 https://github.com/rustrial/aws-eks-iam-auth-controller
