@@ -32,8 +32,6 @@ export K8SADMIN_ROLE_ARN="$(terraform output --raw ks8admin-role-arn)"
 export K8SADMIN_ASSUMEROLE_POLICY_AREN="$(terraform output --raw ks8admin-assumerole-policy-arn)"
 export AWS_LB_ROLE_ARN="$(terraform output --raw aws-load-balancer-controller-role-arn)"
 export EXTERNAL_DNS_ROLE_ARN="$(terraform output --raw external-dns-controller-role-arn)"
-export AWS_EFS_CSI_ROLE_ARN="$(terraform output --raw aws-efs-csi-driver-role-arn)"
-export EFS_POD_STORAGAE_FSID="$(terraform output --raw efs-pod-storage-fs-id)"
 ----
 
 == Update Kubeconfig

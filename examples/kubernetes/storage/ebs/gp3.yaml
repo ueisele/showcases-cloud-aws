@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: ebs-gp3-readwriteonce-claim
+  name: ebs-gp3-claim
 spec:
   accessModes:
     - ReadWriteOnce
@@ -27,4 +27,4 @@ spec:
   volumes:
   - name: persistent-storage
     persistentVolumeClaim:
-      claimName: ebs-gp3-readwriteonce-claim
+      claimName: ebs-gp3-claim

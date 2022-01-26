@@ -16,3 +16,28 @@ kubectl -n ${NS_STORAGE} apply -f ebs/gp3.yaml
 kubectl -n ${NS_STORAGE} apply -f ebs/st1.yaml
 kubectl -n ${NS_STORAGE} apply -f ebs/sc1.yaml
 ----
+
+== EFS
+
+The examples for EFS CSI storage provisioner are from the link:https://github.com/kubernetes-sigs/aws-efs-csi-driver/tree/release-1.3/examples[aws-efs-csi-driver] GitHub repository.
+
+[source,bash]
+----
+kubectl -n ${NS_STORAGE} apply -f efs/efs-dynamic.yaml
+----
+
+[source,bash]
+----
+kubectl -n ${NS_STORAGE} apply -f efs/efs-statefulset-shared.yaml
+----
+
+[source,bash]
+----
+kubectl -n ${NS_STORAGE} apply -f efs/efs-statefulset-volumeclaimtemplate.yaml
+----
+
+[source,bash]
+----
+kubectl -n ${NS_STORAGE} delete -f efs/efs-statefulset-volumeclaimtemplate.yaml
+kubectl -n ${NS_STORAGE} delete pvc -l app=efs-statefulset-volumeclaimtemplate-app
+----

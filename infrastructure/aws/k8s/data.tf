@@ -3,6 +3,19 @@ data "aws_partition" "current" {}
 
 data "aws_caller_identity" "current" {}
 
+data "aws_vpc" "main" {
+  tags = {
+    Name = var.environment
+  }
+}
+
+data "aws_subnet_ids" "private" {
+  vpc_id = data.aws_vpc.main.id
+  tags = {
+    Tier = "private"
+  }
+}
+
 data "aws_eks_cluster" "main" {
   name = "${var.environment}-${var.module}"
 }
