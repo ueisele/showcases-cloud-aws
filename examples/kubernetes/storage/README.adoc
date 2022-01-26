@@ -46,7 +46,7 @@ kubectl -n ${NS_STORAGE} delete pvc -l app=efs-statefulset-volumeclaimtemplate-a
 
 Dynamic volume provisioning does not work on Fargate. Persistent Volumes for Fargate must be created explicitely.
 
-In this example, the EFS created together with the EFS CSI Driver (see link:../../../../infrastructure/aws/k8s/efs-csi-driver.tf[infrastructure/aws/k8s/efs-csi-driver.tf]).
+In this example, the EFS created together with the EFS CSI Driver (see link:../../../infrastructure/aws/k8s/efs-csi-driver.tf[infrastructure/aws/k8s/efs-csi-driver.tf]).
 
 [source,bash]
 ----
