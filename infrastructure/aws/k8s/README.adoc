@@ -29,7 +29,6 @@ terraform apply --var "profile=tu-dev-ueisele"
 CoreDNS				            100m	 170Mi	2	x
 EBS CSI Driver			      400m	 512Mi	1	x
 EFS CSI Driver			      400m	 512Mi	1	x
-FSx for Lustre CSI Driver	400m	 512Mi	1	x
 IAM Auth Controller		     50m	  32Mi	1	x
 LB Controller			        100m	 128Mi	1	x
 External DNS Controller		 50m	  64Mi	1	x
@@ -163,14 +162,6 @@ helm search repo eks
 helm show values eks/aws-load-balancer-controller
 ----
 
-The AWS Load Balancer Controller is configured with auto discovery. It automatically scales all EKS node groups with the following tags:
-
-[source,yaml]
-----
-k8s.io/cluster-autoscaler/enabled: "true"
-k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}: "owned"
-----
-
 The AWS Load Balancer Controller is a provider for Ingress. Ingresses can be implemented by different controllers, often with different configuration.
 
 Therefore, we need to create an IngressClass resource that contains additional configuration including the name of the controller that should implement the class (also see https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/).
@@ -187,6 +178,20 @@ In addition, it sets [`group`](https://kubernetes-sigs.github.io/aws-load-balanc
 ----
 kubectl get ingressClassParams alb
 kubectl get ingressClass alb
+----
+
+=== Cluster Auto Scaler
+
+https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
+
+*HINT*: WIP
+
+The AWS Load Balancer Controller is configured with auto discovery. It automatically scales all EKS node groups with the following tags:
+
+[source,yaml]
+----
+k8s.io/cluster-autoscaler/enabled: "true"
+k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}: "owned"
 ----
 
 == Next Steps
