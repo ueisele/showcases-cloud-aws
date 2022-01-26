@@ -41,3 +41,19 @@ kubectl -n ${NS_STORAGE} apply -f efs/efs-statefulset-volumeclaimtemplate.yaml
 kubectl -n ${NS_STORAGE} delete -f efs/efs-statefulset-volumeclaimtemplate.yaml
 kubectl -n ${NS_STORAGE} delete pvc -l app=efs-statefulset-volumeclaimtemplate-app
 ----
+
+== EFS on Fargate
+
+Dynamic volume provisioning does not work on Fargate. Persistent Volumes for Fargate must be created explicitely.
+
+In this example, the EFS created together with the EFS CSI Driver (see link:../../../../infrastructure/aws/k8s/efs-csi-driver.tf[infrastructure/aws/k8s/efs-csi-driver.tf]).
+
+[source,bash]
+----
+terraform init -backend-config="profile=tu-dev-ueisele"
+----
+
+[source,bash]
+----
+terraform apply --var "profile=tu-dev-ueisele"
+----
