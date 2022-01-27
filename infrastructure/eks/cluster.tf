@@ -16,10 +16,10 @@ resource "aws_eks_cluster" "main" {
   }
 
   tags = {
-    Name = "${var.environment}-${var.module}"
+    Name        = "${var.environment}-${var.module}"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 
   # Ensure that IAM Role permissions are created before and deleted after EKS Cluster handling.
@@ -38,20 +38,20 @@ resource "aws_iam_role" "eks-cluster" {
     Version = "2012-10-17"
     Statement = [
       {
-        "Effect": "Allow",
-        "Principal": {
-          "Service": "eks.amazonaws.com"
+        "Effect" : "Allow",
+        "Principal" : {
+          "Service" : "eks.amazonaws.com"
         },
-        "Action": "sts:AssumeRole"
+        "Action" : "sts:AssumeRole"
       }
     ]
   })
 
   tags = {
-    Name = "${var.environment}-${var.module}-cluster"
+    Name        = "${var.environment}-${var.module}-cluster"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -97,10 +97,10 @@ resource "aws_iam_openid_connect_provider" "eks-cluster" {
   url             = aws_eks_cluster.main.identity[0].oidc[0].issuer
 
   tags = {
-    Name = "${var.environment}-${var.module}-irsa"
+    Name        = "${var.environment}-${var.module}-irsa"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -150,8 +150,8 @@ resource "aws_eks_fargate_profile" "default" {
 
   tags = {
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 
   depends_on = [
@@ -198,9 +198,9 @@ resource "aws_eks_node_group" "system" {
   node_role_arn   = aws_iam_role.eks-node-group.arn
   subnet_ids      = data.aws_subnet_ids.private.ids
 
-  ami_type = "BOTTLEROCKET_ARM_64"
+  ami_type       = "BOTTLEROCKET_ARM_64"
   instance_types = ["t4g.small"]
-  disk_size = 20
+  disk_size      = 20
 
   scaling_config {
     max_size     = 9
@@ -218,16 +218,16 @@ resource "aws_eks_node_group" "system" {
   }
 
   taint {
-    key = "system"
-    value = "true"
+    key    = "system"
+    value  = "true"
     effect = "NO_SCHEDULE"
   }
 
   tags = {
-    Environment = var.environment
-    Module = var.module
-    Terraform = "true"
-    "k8s.io/cluster-autoscaler/enabled" = "true"
+    Environment                                              = var.environment
+    Module                                                   = var.module
+    Terraform                                                = "true"
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
     "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
   }
 
@@ -248,9 +248,9 @@ resource "aws_eks_node_group" "main" {
   node_role_arn   = aws_iam_role.eks-node-group.arn
   subnet_ids      = data.aws_subnet_ids.private.ids
 
-  ami_type = "BOTTLEROCKET_x86_64"
+  ami_type       = "BOTTLEROCKET_x86_64"
   instance_types = ["t3a.medium"]
-  disk_size = 20
+  disk_size      = 20
 
   scaling_config {
     max_size     = 9
@@ -268,10 +268,10 @@ resource "aws_eks_node_group" "main" {
   }
 
   tags = {
-    Environment = var.environment
-    Module = var.module
-    Terraform = "true"
-    "k8s.io/cluster-autoscaler/enabled" = "true"
+    Environment                                              = var.environment
+    Module                                                   = var.module
+    Terraform                                                = "true"
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
     "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
   }
 
@@ -299,10 +299,10 @@ resource "aws_iam_role" "eks-node-group" {
   })
 
   tags = {
-    Name = "${var.environment}-${var.module}-node-group"
+    Name        = "${var.environment}-${var.module}-node-group"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -371,12 +371,12 @@ resource "aws_eks_addon" "vpc-cni" {
   cluster_name             = aws_eks_cluster.main.name
   addon_name               = "vpc-cni"
   service_account_role_arn = aws_iam_role.vpn-cni-assume-role.arn
-  resolve_conflicts = "OVERWRITE"
+  resolve_conflicts        = "OVERWRITE"
   tags = {
-    eks_addon = "vpc-cni"
+    eks_addon   = "vpc-cni"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -388,10 +388,10 @@ resource "aws_eks_addon" "kube-proxy" {
   addon_name        = "kube-proxy"
   resolve_conflicts = "OVERWRITE"
   tags = {
-    eks_addon = "kube-proxy"
+    eks_addon   = "kube-proxy"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -407,10 +407,10 @@ resource "aws_security_group" "eks-cluster" {
   description = "Cluster communication with worker nodes"
   vpc_id      = data.aws_vpc.main.id
   tags = {
-    Name = "${var.environment}-${var.module}-cluster"
+    Name        = "${var.environment}-${var.module}-cluster"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -450,10 +450,10 @@ resource "aws_security_group" "eks-node-group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name = "${var.environment}-${var.module}-node-group"
+    Name        = "${var.environment}-${var.module}-node-group"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 

@@ -4,16 +4,16 @@
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr
+  cidr_block                       = var.vpc_cidr
   assign_generated_ipv6_cidr_block = true
 
-  enable_dns_support = true
+  enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = {
-    Name = var.environment
+    Name        = var.environment
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -25,19 +25,19 @@ output "vpc-id" {
 resource "aws_subnet" "public" {
   count = length(var.public_subnets)
 
-  vpc_id             = aws_vpc.main.id
-  availability_zone  = element(var.azs, count.index % length(var.azs))
-  cidr_block         = element(var.public_subnets, count.index)
-  ipv6_cidr_block    = length(var.public_subnet_ipv6_prefixes) > 0 ? cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, var.public_subnet_ipv6_prefixes[count.index]) : null
+  vpc_id            = aws_vpc.main.id
+  availability_zone = element(var.azs, count.index % length(var.azs))
+  cidr_block        = element(var.public_subnets, count.index)
+  ipv6_cidr_block   = length(var.public_subnet_ipv6_prefixes) > 0 ? cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, var.public_subnet_ipv6_prefixes[count.index]) : null
 
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch         = true
   assign_ipv6_address_on_creation = length(var.public_subnet_ipv6_prefixes) > 0
 
   tags = {
-    Name = "${var.environment}-public-${count.index}"
+    Name        = "${var.environment}-public-${count.index}"
     Environment = var.environment
-    Tier = "public"
-    Terraform = "true"
+    Tier        = "public"
+    Terraform   = "true"
   }
 }
 
@@ -48,9 +48,9 @@ resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.environment}-public"
+    Name        = "${var.environment}-public"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -66,19 +66,19 @@ resource "aws_route_table_association" "public" {
 resource "aws_subnet" "private" {
   count = length(var.private_subnets)
 
-  vpc_id             = aws_vpc.main.id
-  availability_zone  = element(var.azs, count.index % length(var.azs))
-  cidr_block         = element(var.private_subnets, count.index)
-  ipv6_cidr_block    = length(var.private_subnet_ipv6_prefixes) > 0 ? cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, var.private_subnet_ipv6_prefixes[count.index]) : null
+  vpc_id            = aws_vpc.main.id
+  availability_zone = element(var.azs, count.index % length(var.azs))
+  cidr_block        = element(var.private_subnets, count.index)
+  ipv6_cidr_block   = length(var.private_subnet_ipv6_prefixes) > 0 ? cidrsubnet(aws_vpc.main.ipv6_cidr_block, 8, var.private_subnet_ipv6_prefixes[count.index]) : null
 
-  map_public_ip_on_launch = false
+  map_public_ip_on_launch         = false
   assign_ipv6_address_on_creation = length(var.private_subnet_ipv6_prefixes) > 0
 
   tags = {
-    Name = "${var.environment}-private-${count.index}"
+    Name        = "${var.environment}-private-${count.index}"
     Environment = var.environment
-    Tier = "private"
-    Terraform = "true"
+    Tier        = "private"
+    Terraform   = "true"
   }
 }
 
@@ -89,9 +89,9 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = "${var.environment}-private-${count.index}"
+    Name        = "${var.environment}-private-${count.index}"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -99,7 +99,7 @@ resource "aws_route_table" "private" {
 resource "aws_route_table_association" "private" {
   count = length(var.private_subnets)
 
-  subnet_id = element(aws_subnet.private.*.id, count.index)
+  subnet_id      = element(aws_subnet.private.*.id, count.index)
   route_table_id = element(aws_route_table.private.*.id, count.index)
 }
 
@@ -112,9 +112,9 @@ resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = var.environment
+    Name        = var.environment
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -140,12 +140,12 @@ resource "aws_route" "public_internet_gateway_ipv6" {
 resource "aws_eip" "nat" {
   count = length(var.private_subnets) > 0 ? min(var.nat_gateway_count, length(var.private_subnets)) : 0
 
-  vpc   = true
+  vpc = true
 
   tags = {
-    Name = "${var.environment}-nat-${count.index}"
+    Name        = "${var.environment}-nat-${count.index}"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -154,12 +154,12 @@ resource "aws_nat_gateway" "nat" {
   count = length(var.private_subnets) > 0 ? min(var.nat_gateway_count, length(var.private_subnets)) : 0
 
   allocation_id = element(aws_eip.nat.*.id, count.index)
-  subnet_id = element(aws_subnet.public.*.id, count.index % length(aws_subnet.public.*))
+  subnet_id     = element(aws_subnet.public.*.id, count.index % length(aws_subnet.public.*))
 
   tags = {
-    Name = "${var.environment}-${count.index}"
+    Name        = "${var.environment}-${count.index}"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 
   depends_on = [aws_internet_gateway.gw]
@@ -181,9 +181,9 @@ resource "aws_egress_only_internet_gateway" "gw" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = var.environment
+    Name        = var.environment
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 
 }
@@ -212,7 +212,7 @@ resource "aws_route53_zone" "public" {
 
   tags = {
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -240,7 +240,7 @@ resource "aws_route53_zone" "private" {
 
   tags = {
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -259,7 +259,7 @@ resource "aws_acm_certificate" "public" {
 
   tags = {
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 
   lifecycle {
@@ -301,14 +301,14 @@ output "public-certificate-arn" {
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_dhcp_options
 resource "aws_vpc_dhcp_options" "main" {
-  domain_name          = aws_route53_zone.private.name
-  domain_name_servers  = ["AmazonProvidedDNS"]
-  ntp_servers          = ["169.254.169.123"]
+  domain_name         = aws_route53_zone.private.name
+  domain_name_servers = ["AmazonProvidedDNS"]
+  ntp_servers         = ["169.254.169.123"]
 
   tags = {
-    Name = var.environment
+    Name        = var.environment
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -329,9 +329,9 @@ resource "aws_default_network_acl" "default" {
   default_network_acl_id = aws_vpc.main.default_network_acl_id
 
   tags = {
-    Name = "${var.environment}-default"
+    Name        = "${var.environment}-default"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -341,13 +341,13 @@ resource "aws_default_network_acl" "default" {
 resource "aws_network_acl" "public" {
   count = length(var.public_subnets) > 0 ? 1 : 0
 
-  vpc_id = aws_vpc.main.id
+  vpc_id     = aws_vpc.main.id
   subnet_ids = aws_subnet.public.*.id
 
   tags = {
-    Name = "${var.environment}-public"
+    Name        = "${var.environment}-public"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -427,14 +427,14 @@ resource "aws_network_acl_rule" "public_ingress_ipv4_ephemeral" {
 resource "aws_network_acl_rule" "public_ingress_ipv6_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
-  network_acl_id = aws_network_acl.public[0].id
-  egress         = false
-  rule_number    = 210
-  protocol       = "tcp"
-  rule_action    = "allow"
+  network_acl_id  = aws_network_acl.public[0].id
+  egress          = false
+  rule_number     = 210
+  protocol        = "tcp"
+  rule_action     = "allow"
   ipv6_cidr_block = "::/0"
-  from_port      = 1025
-  to_port        = 65535
+  from_port       = 1025
+  to_port         = 65535
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
@@ -485,14 +485,14 @@ resource "aws_network_acl_rule" "public_egress_ipv4_ephemeral" {
 resource "aws_network_acl_rule" "public_egress_ipv6_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
-  network_acl_id = aws_network_acl.public[0].id
-  egress         = true
-  rule_number    = 110
-  protocol       = "tcp"
-  rule_action    = "allow"
+  network_acl_id  = aws_network_acl.public[0].id
+  egress          = true
+  rule_number     = 110
+  protocol        = "tcp"
+  rule_action     = "allow"
   ipv6_cidr_block = "::/0"
-  from_port      = 1025
-  to_port        = 65535
+  from_port       = 1025
+  to_port         = 65535
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
@@ -613,13 +613,13 @@ resource "aws_network_acl_rule" "public_egress_ipv6_vpc" {
 resource "aws_network_acl" "private" {
   count = length(var.private_subnets) > 0 ? 1 : 0
 
-  vpc_id = aws_vpc.main.id
+  vpc_id     = aws_vpc.main.id
   subnet_ids = aws_subnet.private.*.id
 
   tags = {
-    Name = "${var.environment}-private"
+    Name        = "${var.environment}-private"
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -643,14 +643,14 @@ resource "aws_network_acl_rule" "private_ingress_ipv4_ephemeral" {
 resource "aws_network_acl_rule" "private_ingress_ipv6_ephemeral" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
-  network_acl_id = aws_network_acl.private[0].id
-  egress         = false
-  rule_number    = 210
-  protocol       = "tcp"
-  rule_action    = "allow"
+  network_acl_id  = aws_network_acl.private[0].id
+  egress          = false
+  rule_number     = 210
+  protocol        = "tcp"
+  rule_action     = "allow"
   ipv6_cidr_block = "::/0"
-  from_port      = 1025
-  to_port        = 65535
+  from_port       = 1025
+  to_port         = 65535
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
@@ -805,34 +805,34 @@ resource "aws_default_security_group" "default" {
 
   egress = [
     {
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
       ipv6_cidr_blocks = ["::/0"]
-      from_port   = 80
-      to_port     = 80
-      description = "HTTP"
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 80
+      to_port          = 80
+      description      = "HTTP"
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     },
     {
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
       ipv6_cidr_blocks = ["::/0"]
-      from_port   = 443
-      to_port     = 443
-      description = "HTTPS"
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 443
+      to_port          = 443
+      description      = "HTTPS"
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     }
   ]
 
   tags = {
-    Name = "${var.environment}-default"
+    Name        = "${var.environment}-default"
     Environment = var.environment
-    Tier = "default"
-    Terraform = "true"
+    Tier        = "default"
+    Terraform   = "true"
   }
 }
 
@@ -844,37 +844,37 @@ resource "aws_security_group" "public" {
 
   ingress = [
     {
-      protocol    = -1
-      cidr_blocks = [aws_vpc.main.cidr_block]
+      protocol         = -1
+      cidr_blocks      = [aws_vpc.main.cidr_block]
       ipv6_cidr_blocks = [aws_vpc.main.ipv6_cidr_block]
-      from_port   = 0
-      to_port     = 0
-      description = null
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 0
+      to_port          = 0
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     }
   ]
 
   egress = [
     {
-      protocol    = -1
-      cidr_blocks = [aws_vpc.main.cidr_block]
+      protocol         = -1
+      cidr_blocks      = [aws_vpc.main.cidr_block]
       ipv6_cidr_blocks = [aws_vpc.main.ipv6_cidr_block]
-      from_port   = 0
-      to_port     = 0
-      description = null
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 0
+      to_port          = 0
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     }
   ]
 
   tags = {
-    Name = "${var.environment}-public"
+    Name        = "${var.environment}-public"
     Environment = var.environment
-    Tier = "public"
-    Terraform = "true"
+    Tier        = "public"
+    Terraform   = "true"
   }
 }
 
@@ -886,37 +886,37 @@ resource "aws_security_group" "private" {
 
   ingress = [
     {
-      protocol = -1
-      cidr_blocks = [aws_vpc.main.cidr_block]
+      protocol         = -1
+      cidr_blocks      = [aws_vpc.main.cidr_block]
       ipv6_cidr_blocks = [aws_vpc.main.ipv6_cidr_block]
-      from_port = 0
-      to_port = 0
-      description = null
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 0
+      to_port          = 0
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     }
   ]
 
   egress = [
     {
-      protocol = -1
-      cidr_blocks = aws_subnet.private.*.cidr_block
+      protocol         = -1
+      cidr_blocks      = aws_subnet.private.*.cidr_block
       ipv6_cidr_blocks = aws_subnet.private.*.ipv6_cidr_block
-      from_port = 0
-      to_port = 0
-      description = null
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 0
+      to_port          = 0
+      description      = null
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     }
   ]
 
   tags = {
-    Name = "${var.environment}-private"
+    Name        = "${var.environment}-private"
     Environment = var.environment
-    Tier = "private"
-    Terraform = "true"
+    Tier        = "private"
+    Terraform   = "true"
   }
 }
 
@@ -928,33 +928,33 @@ resource "aws_security_group" "web" {
 
   ingress = [
     {
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
       ipv6_cidr_blocks = ["::/0"]
-      from_port   = 80
-      to_port     = 80
-      description = "HTTP"
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 80
+      to_port          = 80
+      description      = "HTTP"
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     },
     {
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+      protocol         = "tcp"
+      cidr_blocks      = ["0.0.0.0/0"]
       ipv6_cidr_blocks = ["::/0"]
-      from_port   = 443
-      to_port     = 443
-      description = "HTTPS"
-      prefix_list_ids = null
-      security_groups = null
-      self = false
+      from_port        = 443
+      to_port          = 443
+      description      = "HTTPS"
+      prefix_list_ids  = null
+      security_groups  = null
+      self             = false
     }
   ]
 
   tags = {
-    Name = "${var.environment}-web"
+    Name        = "${var.environment}-web"
     Environment = var.environment
-    Tier = "web"
-    Terraform = "true"
+    Tier        = "web"
+    Terraform   = "true"
   }
 }

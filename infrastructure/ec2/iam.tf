@@ -4,12 +4,12 @@
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_instance_profile
 resource "aws_iam_instance_profile" "default" {
-  name  = "${var.environment}-default"
-  role  = aws_iam_role.instance-default.name
+  name = "${var.environment}-default"
+  role = aws_iam_role.instance-default.name
 
   tags = {
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 
@@ -32,7 +32,7 @@ resource "aws_iam_role" "instance-default" {
 
   tags = {
     Environment = var.environment
-    Terraform = "true"
+    Terraform   = "true"
   }
 }
 

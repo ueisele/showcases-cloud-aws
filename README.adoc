@@ -1,22 +1,24 @@
-= Cloud Showcases
+= AWS Cloud Showcases
 
-The goal of this repository is to demonstrate and evaluate cloud services and to provide an infrastructure for additional showcases.
+The goal of this repository is to demonstrate and evaluate AWS services and to provide an infrastructure for additional showcases.
 
 *IMPORTANT*: Work is still in progress!
 
 == Overview
 
-*link:infrastructure/README.adoc[Infrastructures]*
-
-* link:infrastructure/aws/README.adoc[AWS]
+*link:infrastructure[Infrastructure]*
 
 image:infrastructure/showcase-infrastructure.drawio.png[]
 
-link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
+link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
 
-*link:platform/README.adoc[Platforms]*
+*link:platform[Platforms]*
 
-* link:platform/asyncapi/README.adoc[AsyncAPI]
+* link:platform/asyncapi[AsyncAPI]
+
+*link:examples[Examples]*
+
+* link:examples/kubernetes[Kubernetes]
 
 == Prerequisites
 

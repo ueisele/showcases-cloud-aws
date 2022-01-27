@@ -1,7 +1,17 @@
 = Infrastructures
 
-At the moment there is only a single infrastructure implemented on link:aws/README.adoc[AWS].
-
 image:showcase-infrastructure.drawio.png[]
 
-link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
+link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
+
+Deploy in the following order:
+
+* link:tfstate-s3[S3 Terraform State Backend Setup]
+* link:vpc[VPC Setup]
+* link:eks[EKS Setup]
+* link:k8s[Kubernetes Setup]
+
+The following are work in progress and not used until now:
+
+* link:ec2[EC2]
+* link:cognito[Cognito]
