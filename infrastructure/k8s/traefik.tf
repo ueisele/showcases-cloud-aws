@@ -209,8 +209,10 @@ resource "kubernetes_secret_v1" "traefik-basic-auth-default" {
   metadata {
     name      = "traefik-basic-auth-default"
     namespace = "kube-system"
-    annotations = {
-      terraform = "true"
+    labels = {
+      "app.kubernetes.io/instance"   = "traefik"
+      "app.kubernetes.io/name"       = "traefik"
+      "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
 
@@ -230,8 +232,10 @@ resource "kubectl_manifest" "traefik-middleware-basic-auth-default" {
     metadata:
       name: basic-auth-default
       namespace: kube-system
-      annotations:
-        terraform: "true"
+      labels:
+        app.kubernetes.io/instance: traefik
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/managed-by: Terraform
     spec:
       basicAuth:
         secret: ${kubernetes_secret_v1.traefik-basic-auth-default.metadata.0.name}
@@ -251,8 +255,10 @@ resource "kubectl_manifest" "ingressroute-traefik-dashboard" {
     metadata:
       name: traefik-dashboard
       namespace: kube-system      
-      annotations:
-        terraform: "true"
+      labels:
+        app.kubernetes.io/instance: traefik
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/managed-by: Terraform
     spec:
       entryPoints:
       - traefik
@@ -273,8 +279,10 @@ resource "kubernetes_service_v1" "traefik-dashboard" {
   metadata {
     name      = "traefik-dashboard"
     namespace = "kube-system"
-    annotations = {
-      terraform = "true"
+    labels = {
+      "app.kubernetes.io/instance"   = "traefik"
+      "app.kubernetes.io/name"       = "traefik"
+      "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
   spec {
@@ -297,10 +305,14 @@ resource "kubernetes_ingress_v1" "traefik-dashboard" {
   metadata {
     name      = "traefik-dashboard"
     namespace = "kube-system"
+    labels = {
+      "app.kubernetes.io/instance"   = "traefik"
+      "app.kubernetes.io/name"       = "traefik"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
     annotations = {
       "traefik.ingress.kubernetes.io/router.entrypoints" = "websecure"
       "traefik.ingress.kubernetes.io/router.middlewares" = "${kubectl_manifest.traefik-middleware-basic-auth-default.namespace}-${kubectl_manifest.traefik-middleware-basic-auth-default.name}@kubernetescrd"
-      terraform                                          = "true"
     }
   }
 

@@ -63,6 +63,10 @@ resource "helm_release" "coredns" {
       }
     }
 
+    podDisruptionBudget = {
+      maxUnavailable = 1
+    }
+
     tolerations = [{
       key      = "system"
       operator = "Equal"

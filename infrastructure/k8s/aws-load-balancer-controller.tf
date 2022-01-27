@@ -37,6 +37,16 @@ resource "helm_release" "aws-load-balancer-controller" {
   }
 
   set {
+    name  = "ingressClass"
+    value = "alb"
+  }
+
+  set {
+    name  = "createIngressClassResource"
+    value = false
+  }
+
+  set {
     name  = "priorityClassName"
     value = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
   }
@@ -51,9 +61,6 @@ resource "helm_release" "aws-load-balancer-controller" {
         "eks.amazonaws.com/role-arn" = aws_iam_role.aws-lb-controller-assume-role.arn
       }
     }
-
-    ingressClass               = "alb"
-    createIngressClassResource = false
 
     enableShield = false
     enableWaf    = false
@@ -133,6 +140,31 @@ resource "helm_release" "aws-load-balancer-controller" {
       }
     }
   })]
+}
+
+#################################
+# Pod Disruption Budget         #
+#################################
+
+resource "kubernetes_pod_disruption_budget_v1" "aws-load-balancer-controller" {
+  metadata {
+    name      = "aws-load-balancer-controller"
+    namespace = "kube-system"
+    labels = {
+      "app.kubernetes.io/instance"   = "aws-load-balancer-controller"
+      "app.kubernetes.io/name"       = "aws-load-balancer-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
+  }
+  spec {
+    max_unavailable = "1"
+    selector {
+      match_labels = {
+        "app.kubernetes.io/instance" = "aws-load-balancer-controller"
+        "app.kubernetes.io/name"     = "aws-load-balancer-controller"
+      }
+    }
+  }
 }
 
 #################################
@@ -440,8 +472,10 @@ resource "kubectl_manifest" "ingressclassparams-alb" {
     kind: IngressClassParams
     metadata:
       name: alb
-      annotations:
-        terraform: "true"
+      labels:
+        app.kubernetes.io/instance: aws-load-balancer-controller
+        app.kubernetes.io/name: aws-load-balancer-controller
+        app.kubernetes.io/managed-by: Terraform
     spec:
       group:
         name: default
@@ -456,9 +490,13 @@ resource "kubectl_manifest" "ingressclassparams-alb" {
 resource "kubernetes_ingress_class_v1" "alb" {
   metadata {
     name = "alb"
+    labels = {
+      "app.kubernetes.io/instance" = "aws-load-balancer-controller"
+      "app.kubernetes.io/name" = "aws-load-balancer-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
     annotations = {
       "ingressclass.kubernetes.io/is-default-class" = "false"
-      terraform                                     = "true"
     }
   }
   spec {

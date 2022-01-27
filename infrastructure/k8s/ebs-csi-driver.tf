@@ -301,6 +301,8 @@ resource "kubectl_manifest" "gp2" {
     kind: StorageClass
     metadata:
       name: gp2
+      labels:
+        app.kubernetes.io/managed-by: Terraform
     parameters:
       fsType: ext4
       type: gp2
@@ -316,6 +318,12 @@ resource "kubectl_manifest" "gp2" {
 resource "kubernetes_storage_class_v1" "gp3" {
   metadata {
     name = "gp3"
+    labels = {
+      "app.kubernetes.io/component"  = "csi-driver"
+      "app.kubernetes.io/instance"   = "ebs-csi-driver"
+      "app.kubernetes.io/name"       = "ebs-csi-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
     annotations = {
       "storageclass.kubernetes.io/is-default-class" = true
     }
@@ -335,6 +343,12 @@ resource "kubernetes_storage_class_v1" "gp3" {
 resource "kubernetes_storage_class_v1" "st1" {
   metadata {
     name = "st1"
+    labels = {
+      "app.kubernetes.io/component"  = "csi-driver"
+      "app.kubernetes.io/instance"   = "ebs-csi-driver"
+      "app.kubernetes.io/name"       = "ebs-csi-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
   }
   storage_provisioner    = "ebs.csi.aws.com"
   volume_binding_mode    = "WaitForFirstConsumer"
@@ -349,6 +363,12 @@ resource "kubernetes_storage_class_v1" "st1" {
 resource "kubernetes_storage_class_v1" "sc1" {
   metadata {
     name = "sc1"
+    labels = {
+      "app.kubernetes.io/component"  = "csi-driver"
+      "app.kubernetes.io/instance"   = "ebs-csi-driver"
+      "app.kubernetes.io/name"       = "ebs-csi-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
   }
   storage_provisioner    = "ebs.csi.aws.com"
   volume_binding_mode    = "WaitForFirstConsumer"

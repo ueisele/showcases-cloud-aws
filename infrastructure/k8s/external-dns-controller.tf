@@ -88,6 +88,31 @@ resource "helm_release" "external-dns-controller" {
 }
 
 #################################
+# Pod Disruption Budget         #
+#################################
+
+resource "kubernetes_pod_disruption_budget_v1" "external-dns-controller" {
+  metadata {
+    name      = "external-dns-controller"
+    namespace = "kube-system"
+    labels = {
+      "app.kubernetes.io/instance"   = "external-dns-controller"
+      "app.kubernetes.io/name"       = "external-dns-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
+  }
+  spec {
+    max_unavailable = "1"
+    selector {
+      match_labels = {
+        "app.kubernetes.io/instance" = "external-dns-controller"
+        "app.kubernetes.io/name"     = "external-dns-controller"
+      }
+    }
+  }
+}
+
+#################################
 # IRSA                          #
 #################################
 

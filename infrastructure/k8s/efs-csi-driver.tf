@@ -117,6 +117,33 @@ resource "helm_release" "efs-csi-driver" {
 }
 
 #################################
+# Pod Disruption Budget         #
+#################################
+
+resource "kubernetes_pod_disruption_budget_v1" "efs-csi-driver" {
+  metadata {
+    name      = "efs-csi-driver"
+    namespace = "kube-system"
+    labels = {
+      "app.kubernetes.io/component"  = "csi-driver"
+      "app.kubernetes.io/instance"   = "efs-csi-driver"
+      "app.kubernetes.io/name"       = "efs-csi-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
+  }
+  spec {
+    max_unavailable = "1"
+    selector {
+      match_labels = {
+        "app"                        = "efs-csi-controller"
+        "app.kubernetes.io/instance" = "efs-csi-driver"
+        "app.kubernetes.io/name"     = "efs-csi-controller"
+      }
+    }
+  }
+}
+
+#################################
 # ISRA                          #
 #################################
 
@@ -246,6 +273,12 @@ resource "aws_security_group" "efs" {
 resource "kubernetes_storage_class_v1" "efs" {
   metadata {
     name = "efs"
+    labels = {
+      "app.kubernetes.io/component"  = "csi-driver"
+      "app.kubernetes.io/instance"   = "efs-csi-driver"
+      "app.kubernetes.io/name"       = "efs-csi-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
   }
   storage_provisioner = "efs.csi.aws.com"
   mount_options       = ["tls"]

@@ -69,6 +69,31 @@ resource "helm_release" "eks-iam-auth-controller" {
 }
 
 #################################
+# Pod Disruption Budget         #
+#################################
+
+resource "kubernetes_pod_disruption_budget_v1" "eks-iam-auth-controller" {
+  metadata {
+    name      = "eks-iam-auth-controller"
+    namespace = "kube-system"
+    labels = {
+      "app.kubernetes.io/instance"   = "eks-iam-auth-controller"
+      "app.kubernetes.io/name"       = "eks-iam-auth-controller"
+      "app.kubernetes.io/managed-by" = "Terraform"
+    }
+  }
+  spec {
+    max_unavailable = "1"
+    selector {
+      match_labels = {
+        "app.kubernetes.io/instance" = "eks-iam-auth-controller"
+        "app.kubernetes.io/name"     = "eks-iam-auth-controller"
+      }
+    }
+  }
+}
+
+#################################
 # IAM Identity Mappings         #
 #################################
 # kubernetes_manifest resource cannot be used because of
@@ -81,6 +106,8 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-node-group" {
     metadata:
       name: role-eks-node-group
       namespace: kube-system
+      labels:
+        app.kubernetes.io/managed-by: Terraform
     spec:
       arn: ${data.aws_iam_role.eks-node-group.arn}
       username: system:node:{{EC2PrivateDNSName}}
@@ -100,6 +127,8 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-fargate-profile" {
     metadata:
       name: role-eks-fargate-profile
       namespace: kube-system
+      labels:
+        app.kubernetes.io/managed-by: Terraform
     spec:
       arn: ${data.aws_iam_role.eks-fargate-profile.arn}
       username: system:node:{{SessionName}}
@@ -120,6 +149,8 @@ resource "kubectl_manifest" "iamidentitymapping-role-k8sadmin" {
     metadata:
       name: role-k8sadmin
       namespace: kube-system
+      labels:
+        app.kubernetes.io/managed-by: Terraform
     spec:
       arn: ${data.aws_iam_role.k8sadmin.arn}
       username: admin
@@ -140,6 +171,8 @@ resource "kubectl_manifest" "iamidentitymapping-admin-users" {
     metadata:
       name: role-k8sadmin-${element(var.k8s_admin_users, count.index)}
       namespace: kube-system
+      labels:
+        app.kubernetes.io/managed-by: Terraform
     spec:
       arn: arn:aws:iam::${data.aws_caller_identity.current.account_id}:user/${element(var.k8s_admin_users, count.index)}
       username: admin

@@ -26,6 +26,18 @@ terraform apply --var "profile=tu-dev-ueisele"
 
 === CoreDNS
 
+https://docs.aws.amazon.com/eks/latest/userguide/managing-coredns.html
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add coredns https://coredns.github.io/helm
+helm repo update
+helm search repo coredns
+helm show values coredns/coredns
+----
+
 === EKS IAM Auth Controller
 
 https://github.com/rustrial/aws-eks-iam-auth-controller
