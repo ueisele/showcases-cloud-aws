@@ -22,22 +22,6 @@ terraform plan --var "profile=tu-dev-ueisele"
 terraform apply --var "profile=tu-dev-ueisele"
 ----
 
-== Deployment Sizing
-
-[source]
-----
-CoreDNS				            100m	 170Mi	2	x
-EBS CSI Driver			      400m	 512Mi	1	x
-EFS CSI Driver			      400m	 512Mi	1	x
-IAM Auth Controller		     50m	  32Mi	1	x
-LB Controller			        100m	 128Mi	1	x
-External DNS Controller		 50m	  64Mi	1	x
-Traefik Ingress           500m	 512Mi	3	x
-Kube Metrics Server		    100m	 200Mi	2	x
-Kubernetes Dashboard		  200m	 200Mi	2	x
-Cluster Autoscaler		    100m	 512Mi	1	x
-----
-
 == Components
 
 === CoreDNS
@@ -237,7 +221,17 @@ Services:
 
 https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
 
-*HINT*: WIP
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add autoscaler https://kubernetes.github.io/autoscaler
+helm repo update
+helm search repo autoscaler
+helm show values autoscaler/cluster-autoscaler
+----
+
+The configuration parameters are described at: https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#what-are-the-parameters-to-ca
 
 The Cluster Auto Scaler is configured with auto discovery. It automatically scales all EKS node groups with the following tags:
 
@@ -246,6 +240,14 @@ The Cluster Auto Scaler is configured with auto discovery. It automatically scal
 k8s.io/cluster-autoscaler/enabled: "true"
 k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}: "owned"
 ----
+
+=== Kube Metrics Server
+
+Kube Metrics Server		    100m	 200Mi	2	x
+
+=== Kubernetes Dashboard
+
+Kubernetes Dashboard		  200m	 200Mi	2	x
 
 == Next Steps
 

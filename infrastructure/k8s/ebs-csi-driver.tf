@@ -152,7 +152,7 @@ resource "aws_iam_role_policy_attachment" "ebs-csi-driver-policy-attachment" {
 
 resource "aws_iam_policy" "ebs-csi-driver-policy" {
   name        = "${var.environment}-${var.module}-ebs-csi-driver-policy"
-  description = "EBS CSI Driver Plugin Policy for ${var.environment}-${var.module}"
+  description = "EBS CSI Driver Plugin Policy for Cluster ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.ebs-csi-driver-policy-document.json
 }
 

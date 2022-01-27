@@ -150,7 +150,7 @@ resource "aws_iam_role_policy_attachment" "efs-csi-driver" {
 
 resource "aws_iam_policy" "efs-csi-driver" {
   name        = "${var.environment}-${var.module}-efs-csi-driver"
-  description = "EKS External DNS Controller for Cluster ${var.environment}-${var.module}"
+  description = "EFS CSI Driver Plugin Policy for Cluster ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.efs-csi-driver.json
 }
 
