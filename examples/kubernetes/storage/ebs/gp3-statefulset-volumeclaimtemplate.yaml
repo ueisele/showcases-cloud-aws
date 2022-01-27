@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gp3-statefulset-volumeclaimtemplate-app
+spec:
+  selector:
+    matchLabels:
+      app: gp3-statefulset-volumeclaimtemplate-app
+  serviceName: gp3-statefulset-volumeclaimtemplate-app
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: gp3-statefulset-volumeclaimtemplate-app
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: linux
+        image: centos
+        command: ["/bin/sh"]
+        args: ["-c", "while true; do echo ${POD_NAME}: $(date -u) >> /data/out; sleep 5; done"]
+        volumeMounts:
+        - name: gp3-storage
+          mountPath: /data
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+  volumeClaimTemplates:
+  - metadata:
+      name: gp3-storage
+      labels:
+        app: gp3-statefulset-volumeclaimtemplate-app
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "gp3"
+      resources:
+        requests:
+          storage: 5Gi

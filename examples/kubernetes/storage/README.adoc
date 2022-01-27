@@ -4,11 +4,25 @@
 
 The examples for EBS CSI storage provisioner are from the link:https://github.com/kubernetes-sigs/aws-ebs-csi-driver/tree/master/examples[aws-ebs-csi-driver] GitHub repository.
 
+.Examples for different storage types
 [source,bash]
 ----
 kubectl -n ${NS_EXAMPLES} apply -f ebs/gp3.yaml
 kubectl -n ${NS_EXAMPLES} apply -f ebs/st1.yaml
 kubectl -n ${NS_EXAMPLES} apply -f ebs/sc1.yaml
+----
+
+.StatefulSet with GP3 storage
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} apply -f ebs/gp3-statefulset-volumeclaimtemplate.yaml
+----
+
+.PVCs need to be deleted manually
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} delete -f ebs/gp3-statefulset-volumeclaimtemplate.yaml
+kubectl -n ${NS_EXAMPLES} delete pvc -l app=gp3-statefulset-volumeclaimtemplate-app
 ----
 
 == EFS
