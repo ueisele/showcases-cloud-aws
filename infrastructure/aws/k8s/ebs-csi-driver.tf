@@ -117,7 +117,7 @@ resource "helm_release" "ebs-csi-driver" {
 }
 
 #################################
-# IRSA                       #
+# IRSA                          #
 #################################
 
 data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {

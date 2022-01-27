@@ -8,3 +8,7 @@ All examples are based on the Kubernetes installation provided in the link:../..
 export NS_EXAMPLES=examples-$(whoami)
 kubectl create ns ${NS_EXAMPLES}
 ----
+
+* link:dns[Examples to test DNS capability of the cluster]
+* link:storage[Examples which demonstrate persistence]
+* link:external-access[Examples which demonstrate how to provide external access]

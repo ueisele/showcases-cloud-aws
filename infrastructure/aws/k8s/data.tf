@@ -11,6 +11,13 @@ data "aws_vpc" "main" {
   }
 }
 
+data "aws_subnet_ids" "public" {
+  vpc_id = data.aws_vpc.main.id
+  tags = {
+    Tier = "public"
+  }
+}
+
 data "aws_subnet_ids" "private" {
   vpc_id = data.aws_vpc.main.id
   tags = {

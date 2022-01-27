@@ -11,7 +11,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-  - host: nginx-hello.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https.showcase.aws.uweeisele.dev
     http:
       paths:
       - path: /*

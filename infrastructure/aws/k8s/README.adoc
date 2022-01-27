@@ -180,13 +180,27 @@ kubectl get ingressClassParams alb
 kubectl get ingressClass alb
 ----
 
+=== External DNS
+
+https://github.com/kubernetes-sigs/external-dns/tree/master/charts/external-dns
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+helm repo update
+helm search repo external-dns
+helm show values external-dns/external-dns
+----
+
 === Cluster Auto Scaler
 
 https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
 
 *HINT*: WIP
 
-The AWS Load Balancer Controller is configured with auto discovery. It automatically scales all EKS node groups with the following tags:
+The Cluster Auto Scaler is configured with auto discovery. It automatically scales all EKS node groups with the following tags:
 
 [source,yaml]
 ----

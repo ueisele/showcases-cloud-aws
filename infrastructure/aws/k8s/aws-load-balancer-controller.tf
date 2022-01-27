@@ -404,6 +404,27 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 }
 
 #################################
+# Subnet Auto Discovery         #
+#################################
+# https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/subnet_discovery/
+
+resource "aws_ec2_tag" "public-subnets-eks-elb" {
+  count = length(data.aws_subnet_ids.public.ids)
+
+  resource_id = element(tolist(data.aws_subnet_ids.public.ids), count.index)
+  key         = "kubernetes.io/role/elb"
+  value       = "1"
+}
+
+resource "aws_ec2_tag" "private-subnets-eks-elb" {
+  count = length(data.aws_subnet_ids.private.ids)
+
+  resource_id = element(tolist(data.aws_subnet_ids.private.ids), count.index)
+  key         = "kubernetes.io/role/internal-elb"
+  value       = "1"
+}
+
+#################################
 # Ingress Class                 #
 #################################
 # https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/

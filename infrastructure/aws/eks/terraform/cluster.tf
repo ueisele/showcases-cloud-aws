@@ -125,30 +125,12 @@ resource "aws_ec2_tag" "public-subnets-eks-cluster" {
 }
 
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag
-resource "aws_ec2_tag" "public-subnets-eks-elb" {
-  count = length(data.aws_subnet_ids.public.ids)
-
-  resource_id = element(tolist(data.aws_subnet_ids.public.ids), count.index)
-  key         = "kubernetes.io/role/elb"
-  value       = "1"
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag
 resource "aws_ec2_tag" "private-subnets-eks-cluster" {
   count = length(data.aws_subnet_ids.private.ids)
 
   resource_id = element(tolist(data.aws_subnet_ids.private.ids), count.index)
   key         = "kubernetes.io/cluster/${aws_eks_cluster.main.name}"
   value       = "shared"
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag
-resource "aws_ec2_tag" "private-subnets-eks-elb" {
-  count = length(data.aws_subnet_ids.private.ids)
-
-  resource_id = element(tolist(data.aws_subnet_ids.private.ids), count.index)
-  key         = "kubernetes.io/role/internal-elb"
-  value       = "1"
 }
 
 #################################

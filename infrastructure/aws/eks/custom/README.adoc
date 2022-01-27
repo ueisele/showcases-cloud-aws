@@ -9,5 +9,4 @@ aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name 
 
 Run the following installations:
 
-* link:external-dns-controller/README.adoc[External DNS Controller Installation]
 * link:traefik-ingress-controller/README.adoc[Traefik Ingress Controller Installation]

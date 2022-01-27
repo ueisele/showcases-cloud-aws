@@ -8,11 +8,11 @@ metadata:
     alb.ingress.kubernetes.io/backend-protocol: HTTP
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: /
-  name: nginx-hello-https
+  name: nginx-hello-https-redirect
 spec:
   ingressClassName: alb
   rules:
-  - host: nginx-hello.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https-redirect.showcase.aws.uweeisele.dev
     http:
       paths:
       - path: /*

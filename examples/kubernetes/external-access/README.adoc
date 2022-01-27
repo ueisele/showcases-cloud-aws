@@ -94,7 +94,7 @@ After the Ingress has been created, it takes some time until the AWS Load Balanc
 [source,bash]
 ----
 kubectl -n examples-$(whoami) get ingress nginx-hello-http -o yaml
-export TOOLS_LB_DNS_NAME=$(kubectl -n examples-$(whoami) get ingress nginx-hello-http -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+export LB_DNS_NAME=$(kubectl -n examples-$(whoami) get ingress nginx-hello-http -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 ----
 
 The attribute `status.loadBalancer.ingress.hostname` shows the created DNS name of the loadbalancer.
@@ -102,16 +102,16 @@ The attribute `status.loadBalancer.ingress.hostname` shows the created DNS name 
 .You can use this DNS name, to make a HTTP request to your application via the created load balancer
 [source,bash]
 ----
-curl -H "Host: nginx-hello.showcase.aws.uweeisele.dev" http://${TOOLS_LB_DNS_NAME}
+curl -H "Host: nginx-hello-http.showcase.aws.uweeisele.dev" http://${LB_DNS_NAME}
 ----
 
-In order to make a request to `nginx-hello.showcase.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
+In order to make a request to `nginx-hello-http.showcase.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
 
 .You can display the created load balancer with the following aws cli query (replace the load balancer DNS name with the actual DNS name)
 [source,bash]
 ----
-aws elbv2 describe-load-balancers | jq ".LoadBalancers[] | select(.DNSName | contains(\"${TOOLS_LB_DNS_NAME}\"))"
-export TOOLS_LB_ARN=$(aws elbv2 describe-load-balancers | jq -r ".LoadBalancers[] | select(.DNSName | contains(\"${TOOLS_LB_DNS_NAME}\")) | .LoadBalancerArn")
+aws elbv2 describe-load-balancers | jq ".LoadBalancers[] | select(.DNSName | contains(\"${LB_DNS_NAME}\"))"
+export TOOLS_LB_ARN=$(aws elbv2 describe-load-balancers | jq -r ".LoadBalancers[] | select(.DNSName | contains(\"${LB_DNS_NAME}\")) | .LoadBalancerArn")
 ----
 
 A load balancer can have multiple listeners. This configuration created a listener for port 80.
@@ -120,16 +120,16 @@ A load balancer can have multiple listeners. This configuration created a listen
 [source,bash]
 ----
 aws elbv2 describe-listeners --load-balancer-arn ${TOOLS_LB_ARN}
-export TOOLS_LB_LISTENER_80_ARN=$(aws elbv2 describe-listeners --load-balancer-arn ${TOOLS_LB_ARN} | jq -r ".Listeners[] | select(.Port==80) | .ListenerArn")
+export LB_LISTENER_80_ARN=$(aws elbv2 describe-listeners --load-balancer-arn ${TOOLS_LB_ARN} | jq -r ".Listeners[] | select(.Port==80) | .ListenerArn")
 ----
 
-A listener can have multiple rules. This configuration created a rule for host `nginx-hello.showcase.aws.uweeisele.dev` and path `/*`.
+A listener can have multiple rules. This configuration created a rule for host `nginx-hello-http.showcase.aws.uweeisele.dev` and path `/*`.
 
 .List the rules of the listener (replace arn with actual arn, printed by the previous command)
 [source,bash]
 ----
-aws elbv2 describe-rules --listener-arn ${TOOLS_LB_LISTENER_80_ARN}
-export NGINX_HELLO_HTTP_TG_ARN=$(aws elbv2 describe-rules --listener-arn ${TOOLS_LB_LISTENER_80_ARN} | jq -r ".Rules[] | select(.Conditions[].Values[] | contains(\"nginx-hello\")) | .Actions[0].ForwardConfig.TargetGroups[0].TargetGroupArn")
+aws elbv2 describe-rules --listener-arn ${LB_LISTENER_80_ARN}
+export NGINX_HELLO_HTTP_TG_ARN=$(aws elbv2 describe-rules --listener-arn ${LB_LISTENER_80_ARN} | jq -r ".Rules[] | select(.Conditions[].Values[] | contains(\"nginx-hello-http\")) | .Actions[0].ForwardConfig.TargetGroups[0].TargetGroupArn")
 ----
 
 If the rule matches, requests are forwared to a node defined by the assigned target group. The AWS Load Balancer Controller automatically adds the IPs of the Pods of the specified service to this target group.
@@ -157,7 +157,7 @@ metadata:
   name: nginx-hello-https
 spec:
   rules:
-  - host: nginx-hello.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https.showcase.aws.uweeisele.dev
     http:
       paths:
       - path: /*
@@ -191,7 +191,7 @@ The example creates an deployment with three pods using `nginxdemos/hello:plain-
 kubectl -n examples-$(whoami) apply -f deployment.yaml
 ----
 
-The Ingress as created for host `nginx-hello.showcase.aws.uweeisele.dev` and path `/*`.
+The Ingress as created for host `nginx-hello-https.showcase.aws.uweeisele.dev` and path `/*`.
 
 .Deploy HTTPS Ingress for example HTTP web-server 
 [source,bash]
@@ -205,7 +205,7 @@ After the Ingress has been created, it takes some time until the AWS Load Balanc
 [source,bash]
 ----
 kubectl -n examples-$(whoami) get ingress nginx-hello-https -o yaml
-export TOOLS_LB_DNS_NAME=$(kubectl -n examples-$(whoami) get ingress nginx-hello-https -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+export LB_DNS_NAME=$(kubectl -n examples-$(whoami) get ingress nginx-hello-https -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
 ----
 
 The attribute `status.loadBalancer.ingress.hostname` shows the created DNS name of the loadbalancer.
@@ -214,8 +214,8 @@ This sould be the same load balancer which is used for the HTTP example, because
 .Get Ip address of load balancer
 [source,bash]
 ----
-dig ${TOOLS_LB_DNS_NAME}
-export TOOLS_LB_IP=$(dig +short ${TOOLS_LB_DNS_NAME} | tail -n1)
+dig ${LB_DNS_NAME}
+export TOOLS_LB_IP=$(dig +short ${LB_DNS_NAME} | tail -n1)
 ----
 
 Now you can explicitly map the load balancer ip to the expected host name of the service via _--resolve_ command line parameter of curl and send the request.
@@ -224,10 +224,10 @@ This is required, because also the SNI is checked, which is always set to the ac
 .You can use this DNS name, to make a HTTPS request to your application via the created load balancer
 [source,bash]
 ----
-curl --resolve nginx-hello.showcase.aws.uweeisele.dev:443:${TOOLS_LB_IP} https://nginx-hello.showcase.aws.uweeisele.dev
+curl --resolve nginx-hello-https.showcase.aws.uweeisele.dev:443:${TOOLS_LB_IP} https://nginx-hello-https.showcase.aws.uweeisele.dev
 ----
 
-In order to make a request to `nginx-hello.showcase.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
+In order to make a request to `nginx-hello-https.showcase.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
 
 == External DNS
 
@@ -241,7 +241,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: kafka.showcase.aws.uweeisele.dev
+    external-dns.alpha.kubernetes.io/hostname: nginx-hello-https.showcase.aws.uweeisele.dev
 ----
 
 For Kubernetes Ingress, also the Host which is specified in the ingress is considered.
@@ -253,7 +253,7 @@ Example:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 spec:
-  ingressClassName: aws-alb
+  ingressClassName: alb
   rules:
-  - host: apicurio.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https.showcase.aws.uweeisele.dev
 ----
