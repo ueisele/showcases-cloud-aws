@@ -9,35 +9,35 @@ resource "helm_release" "eks-iam-auth-controller" {
   chart      = "rustrial-aws-eks-iam-auth-controller"
   version    = "0.1.6"
 
-  namespace  = "kube-system"
+  namespace = "kube-system"
 
   set {
-    name = "fullnameOverride"
+    name  = "fullnameOverride"
     value = "eks-iam-auth-controller"
   }
 
   set {
-    name = "nameOverride"
+    name  = "nameOverride"
     value = "eks-iam-auth-controller"
   }
 
   values = [yamlencode({
     resources = {
       limits = {
-        cpu = "100m"
+        cpu    = "100m"
         memory = "32Mi"
       }
       requests = {
-        cpu = "50m"
+        cpu    = "50m"
         memory = "32Mi"
       }
     }
 
     tolerations = [{
-      key = "system"
+      key      = "system"
       operator = "Equal"
-      value = "true"
-      effect = "NoSchedule"
+      value    = "true"
+      effect   = "NoSchedule"
     }]
 
     affinity = {
@@ -46,53 +46,23 @@ resource "helm_release" "eks-iam-auth-controller" {
           nodeSelectorTerms = [{
             matchExpressions = [
               {
-                key = "eks.amazonaws.com/nodegroup"
+                key      = "eks.amazonaws.com/nodegroup"
                 operator = "In"
-                values = [local.eks_cluster_system_node_group_name]
+                values   = [local.eks_cluster_system_node_group_name]
               },
               {
-                key = "kubernetes.io/os"
+                key      = "kubernetes.io/os"
                 operator = "In"
-                values = ["linux"]
+                values   = ["linux"]
               },
               {
-                key = "kubernetes.io/arch"
+                key      = "kubernetes.io/arch"
                 operator = "In"
-                values = ["amd64","arm64"]
+                values   = ["amd64", "arm64"]
               }
             ]
           }]
         }
-      }
-      podAntiAffinity = {
-        preferredDuringSchedulingIgnoredDuringExecution = [
-          {
-            podAffinityTerm = {
-              labelSelector = {
-                matchExpressions = [{
-                  key = "app.kubernetes.io/name"
-                  operator = "In"
-                  values = ["eks-iam-auth-controller"]
-                }]
-              }
-              topologyKey = "kubernetes.io/hostname"
-            }
-            weight = 100
-          },
-          {
-            podAffinityTerm = {
-              labelSelector = {
-                matchExpressions = [{
-                  key = "app.kubernetes.io/name"
-                  operator = "In"
-                  values = ["eks-iam-auth-controller"]
-                }]
-              }
-              topologyKey = "failure-domain.beta.kubernetes.io/zone"
-            }
-            weight = 100
-          }
-        ]
       }
     }
   })]
@@ -105,7 +75,7 @@ resource "helm_release" "eks-iam-auth-controller" {
 # https://github.com/hashicorp/terraform-provider-kubernetes/pull/1506
 
 resource "kubectl_manifest" "iamidentitymapping-role-eks-node-group" {
-  yaml_body  = <<-EOF
+  yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
     metadata:
@@ -124,7 +94,7 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-node-group" {
 }
 
 resource "kubectl_manifest" "iamidentitymapping-role-eks-fargate-profile" {
-  yaml_body  = <<-EOF
+  yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
     metadata:
@@ -144,7 +114,7 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-fargate-profile" {
 }
 
 resource "kubectl_manifest" "iamidentitymapping-role-k8sadmin" {
-  yaml_body  = <<-EOF
+  yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
     metadata:
@@ -164,7 +134,7 @@ resource "kubectl_manifest" "iamidentitymapping-role-k8sadmin" {
 resource "kubectl_manifest" "iamidentitymapping-admin-users" {
   count = length(var.k8s_admin_users)
 
-  yaml_body  = <<-EOF
+  yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
     metadata:

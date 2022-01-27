@@ -9,65 +9,65 @@ resource "helm_release" "coredns" {
   chart      = "coredns"
   version    = "1.16.5"
 
-  namespace  = "kube-system"
+  namespace = "kube-system"
 
   set {
-    name = "fullnameOverride"
+    name  = "fullnameOverride"
     value = "coredns"
   }
 
   set {
-    name = "nameOverride"
+    name  = "nameOverride"
     value = "coredns"
   }
 
   set {
-    name = "image.tag"
+    name  = "image.tag"
     value = "1.8.7"
   }
 
   set {
-    name = "replicaCount"
+    name  = "replicaCount"
     value = 2
   }
 
   set {
-    name = "priorityClassName"
-    value = "system-cluster-critical"
+    name  = "priorityClassName"
+    value = kubernetes_priority_class_v1.high-priority-system-service.metadata.0.name
   }
 
   set {
-    name = "service.clusterIP"
+    name  = "service.clusterIP"
     value = var.eks_cluster_dns_ip
   }
 
   set {
-    name = "serviceAccount.create"
+    name  = "serviceAccount.create"
     value = true
   }
 
   set {
-    name = "prometheus.service.enabled"
+    name  = "prometheus.service.enabled"
     value = true
   }
 
   values = [yamlencode({
     resources = {
       limits = {
-        cpu = "100m"
+        cpu    = "100m"
         memory = "192Mi"
       }
       requests = {
-        cpu = "100m"
+        cpu    = "100m"
         memory = "128Mi"
       }
     }
 
     tolerations = [{
-      key = "system"
+      key      = "system"
       operator = "Equal"
-      value = "true"
-      effect = "NoSchedule"
+      value    = "true"
+      effect   = "NoSchedule"
     }]
 
     affinity = {
@@ -76,51 +76,45 @@ resource "helm_release" "coredns" {
           nodeSelectorTerms = [{
             matchExpressions = [
               {
-                key = "eks.amazonaws.com/nodegroup"
+                key      = "eks.amazonaws.com/nodegroup"
                 operator = "In"
-                values = [local.eks_cluster_system_node_group_name]
+                values   = [local.eks_cluster_system_node_group_name]
               },
               {
-                key = "kubernetes.io/os"
+                key      = "kubernetes.io/os"
                 operator = "In"
-                values = ["linux"]
+                values   = ["linux"]
               },
               {
-                key = "kubernetes.io/arch"
+                key      = "kubernetes.io/arch"
                 operator = "In"
-                values = ["amd64","arm64"]
+                values   = ["amd64", "arm64"]
               }
             ]
           }]
         }
       }
       podAntiAffinity = {
-        preferredDuringSchedulingIgnoredDuringExecution = [
+        requiredDuringSchedulingIgnoredDuringExecution = [
           {
-            podAffinityTerm = {
-              labelSelector = {
-                matchExpressions = [{
-                  key = "app.kubernetes.io/name"
-                  operator = "In"
-                  values = ["coredns"]
-                }]
-              }
-              topologyKey = "kubernetes.io/hostname"
+            labelSelector = {
+              matchExpressions = [{
+                key      = "app.kubernetes.io/name"
+                operator = "In"
+                values   = ["coredns"]
+              }]
             }
-            weight = 100
+            topologyKey = "kubernetes.io/hostname"
           },
           {
-            podAffinityTerm = {
-              labelSelector = {
-                matchExpressions = [{
-                  key = "app.kubernetes.io/name"
-                  operator = "In"
-                  values = ["coredns"]
-                }]
-              }
-              topologyKey = "failure-domain.beta.kubernetes.io/zone"
+            labelSelector = {
+              matchExpressions = [{
+                key      = "app.kubernetes.io/name"
+                operator = "In"
+                values   = ["coredns"]
+              }]
             }
-            weight = 100
+            topologyKey = "failure-domain.beta.kubernetes.io/zone"
           }
         ]
       }

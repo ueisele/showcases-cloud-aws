@@ -19,11 +19,16 @@ variable "route53_public_main_zone" {
 }
 
 variable "eks_cluster_dns_ip" {
-  default = "172.20.0.10"
+  default     = "172.20.0.10"
   description = "'cluster-dns-ip' setting of instance template user data"
 }
 
 variable "k8s_admin_users" {
-  type        = list(string)
-  default     = ["ueisele"]
+  type    = list(string)
+  default = ["ueisele"]
+}
+
+variable "traefik_internal_expose" {
+  type    = bool
+  default = true
 }

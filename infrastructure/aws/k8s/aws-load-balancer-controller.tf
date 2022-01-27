@@ -9,31 +9,36 @@ resource "helm_release" "aws-load-balancer-controller" {
   chart      = "aws-load-balancer-controller"
   version    = "1.3.3"
 
-  namespace  = "kube-system"
+  namespace = "kube-system"
 
   set {
-    name = "fullnameOverride"
+    name  = "fullnameOverride"
     value = "aws-load-balancer-controller"
   }
 
   set {
-    name = "nameOverride"
+    name  = "nameOverride"
     value = "aws-load-balancer-controller"
   }
 
   set {
-    name = "region"
+    name  = "region"
     value = data.aws_region.current.name
   }
 
   set {
-    name = "clusterName"
+    name  = "clusterName"
     value = data.aws_eks_cluster.main.name
   }
 
   set {
-    name = "vpcId"
+    name  = "vpcId"
     value = data.aws_vpc.main.id
+  }
+
+  set {
+    name  = "priorityClassName"
+    value = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
   }
 
   values = [yamlencode({
@@ -41,35 +46,35 @@ resource "helm_release" "aws-load-balancer-controller" {
 
     serviceAccount = {
       create = true
-      name = "aws-load-balancer-controller-sa"
+      name   = "aws-load-balancer-controller-sa"
       annotations = {
         "eks.amazonaws.com/role-arn" = aws_iam_role.aws-lb-controller-assume-role.arn
       }
     }
 
-    ingressClass = "alb"
+    ingressClass               = "alb"
     createIngressClassResource = false
 
     enableShield = false
-    enableWaf = false
-    enableWafv2 = false
+    enableWaf    = false
+    enableWafv2  = false
 
     resources = {
       limits = {
-        cpu = "100m"
+        cpu    = "100m"
         memory = "128Mi"
       }
       requests = {
-        cpu = "100m"
+        cpu    = "100m"
         memory = "128Mi"
       }
     }
 
     tolerations = [{
-      key = "system"
+      key      = "system"
       operator = "Equal"
-      value = "true"
-      effect = "NoSchedule"
+      value    = "true"
+      effect   = "NoSchedule"
     }]
 
     affinity = {
@@ -78,19 +83,19 @@ resource "helm_release" "aws-load-balancer-controller" {
           nodeSelectorTerms = [{
             matchExpressions = [
               {
-                key = "eks.amazonaws.com/nodegroup"
+                key      = "eks.amazonaws.com/nodegroup"
                 operator = "In"
-                values = [local.eks_cluster_system_node_group_name]
+                values   = [local.eks_cluster_system_node_group_name]
               },
               {
-                key = "kubernetes.io/os"
+                key      = "kubernetes.io/os"
                 operator = "In"
-                values = ["linux"]
+                values   = ["linux"]
               },
               {
-                key = "kubernetes.io/arch"
+                key      = "kubernetes.io/arch"
                 operator = "In"
-                values = ["amd64","arm64"]
+                values   = ["amd64", "arm64"]
               }
             ]
           }]
@@ -102,9 +107,9 @@ resource "helm_release" "aws-load-balancer-controller" {
             podAffinityTerm = {
               labelSelector = {
                 matchExpressions = [{
-                  key = "app.kubernetes.io/name"
+                  key      = "app.kubernetes.io/name"
                   operator = "In"
-                  values = ["aws-load-balancer-controller"]
+                  values   = ["aws-load-balancer-controller"]
                 }]
               }
               topologyKey = "kubernetes.io/hostname"
@@ -115,9 +120,9 @@ resource "helm_release" "aws-load-balancer-controller" {
             podAffinityTerm = {
               labelSelector = {
                 matchExpressions = [{
-                  key = "app.kubernetes.io/name"
+                  key      = "app.kubernetes.io/name"
                   operator = "In"
-                  values = ["aws-load-balancer-controller"]
+                  values   = ["aws-load-balancer-controller"]
                 }]
               }
               topologyKey = "failure-domain.beta.kubernetes.io/zone"
@@ -163,49 +168,49 @@ resource "aws_iam_role_policy_attachment" "aws-lb-controller" {
 }
 
 resource "aws_iam_policy" "aws-lb-controller" {
-  name = "${var.environment}-${var.module}-aws-lb-controller"
+  name        = "${var.environment}-${var.module}-aws-lb-controller"
   description = "EKS AWS Load Balancer Controller for Cluster ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.aws-lb-controller.json
 }
 
 data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
-    effect = "Allow"
-    actions = ["iam:CreateServiceLinkedRole"]
+    effect    = "Allow"
+    actions   = ["iam:CreateServiceLinkedRole"]
     resources = ["*"]
     condition {
       test     = "StringEquals"
       variable = "iam:AWSServiceName"
       values   = ["elasticloadbalancing.amazonaws.com"]
     }
-  }  
+  }
 
   statement {
     effect = "Allow"
     actions = [
-        "ec2:DescribeAccountAttributes",
-        "ec2:DescribeAddresses",
-        "ec2:DescribeAvailabilityZones",
-        "ec2:DescribeInternetGateways",
-        "ec2:DescribeVpcs",
-        "ec2:DescribeVpcPeeringConnections",
-        "ec2:DescribeSubnets",
-        "ec2:DescribeSecurityGroups",
-        "ec2:DescribeInstances",
-        "ec2:DescribeNetworkInterfaces",
-        "ec2:DescribeTags",
-        "ec2:GetCoipPoolUsage",
-        "ec2:DescribeCoipPools",
-        "elasticloadbalancing:DescribeLoadBalancers",
-        "elasticloadbalancing:DescribeLoadBalancerAttributes",
-        "elasticloadbalancing:DescribeListeners",
-        "elasticloadbalancing:DescribeListenerCertificates",
-        "elasticloadbalancing:DescribeSSLPolicies",
-        "elasticloadbalancing:DescribeRules",
-        "elasticloadbalancing:DescribeTargetGroups",
-        "elasticloadbalancing:DescribeTargetGroupAttributes",
-        "elasticloadbalancing:DescribeTargetHealth",
-        "elasticloadbalancing:DescribeTags"
+      "ec2:DescribeAccountAttributes",
+      "ec2:DescribeAddresses",
+      "ec2:DescribeAvailabilityZones",
+      "ec2:DescribeInternetGateways",
+      "ec2:DescribeVpcs",
+      "ec2:DescribeVpcPeeringConnections",
+      "ec2:DescribeSubnets",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeInstances",
+      "ec2:DescribeNetworkInterfaces",
+      "ec2:DescribeTags",
+      "ec2:GetCoipPoolUsage",
+      "ec2:DescribeCoipPools",
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticloadbalancing:DescribeLoadBalancerAttributes",
+      "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeListenerCertificates",
+      "elasticloadbalancing:DescribeSSLPolicies",
+      "elasticloadbalancing:DescribeRules",
+      "elasticloadbalancing:DescribeTargetGroups",
+      "elasticloadbalancing:DescribeTargetGroupAttributes",
+      "elasticloadbalancing:DescribeTargetHealth",
+      "elasticloadbalancing:DescribeTags"
     ]
     resources = ["*"]
   }
@@ -213,23 +218,23 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
     actions = [
-        "cognito-idp:DescribeUserPoolClient",
-        "acm:ListCertificates",
-        "acm:DescribeCertificate",
-        "iam:ListServerCertificates",
-        "iam:GetServerCertificate",
-        "waf-regional:GetWebACL",
-        "waf-regional:GetWebACLForResource",
-        "waf-regional:AssociateWebACL",
-        "waf-regional:DisassociateWebACL",
-        "wafv2:GetWebACL",
-        "wafv2:GetWebACLForResource",
-        "wafv2:AssociateWebACL",
-        "wafv2:DisassociateWebACL",
-        "shield:GetSubscriptionState",
-        "shield:DescribeProtection",
-        "shield:CreateProtection",
-        "shield:DeleteProtection"
+      "cognito-idp:DescribeUserPoolClient",
+      "acm:ListCertificates",
+      "acm:DescribeCertificate",
+      "iam:ListServerCertificates",
+      "iam:GetServerCertificate",
+      "waf-regional:GetWebACL",
+      "waf-regional:GetWebACLForResource",
+      "waf-regional:AssociateWebACL",
+      "waf-regional:DisassociateWebACL",
+      "wafv2:GetWebACL",
+      "wafv2:GetWebACLForResource",
+      "wafv2:AssociateWebACL",
+      "wafv2:DisassociateWebACL",
+      "shield:GetSubscriptionState",
+      "shield:DescribeProtection",
+      "shield:CreateProtection",
+      "shield:DeleteProtection"
     ]
     resources = ["*"]
   }
@@ -237,21 +242,21 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
     actions = [
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupIngress"
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress"
     ]
-    resources = ["*"]
-  }  
-
-  statement {
-    effect = "Allow"
-    actions = ["ec2:CreateSecurityGroup"]
     resources = ["*"]
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:CreateTags"]
+    effect    = "Allow"
+    actions   = ["ec2:CreateSecurityGroup"]
+    resources = ["*"]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["ec2:CreateTags"]
     resources = ["arn:aws:ec2:*:*:security-group/*"]
     condition {
       test     = "StringEquals"
@@ -263,13 +268,13 @@ data "aws_iam_policy_document" "aws-lb-controller" {
       variable = "aws:RequestTag/elbv2.k8s.aws/cluster"
       values   = ["false"]
     }
-  }  
+  }
 
   statement {
     effect = "Allow"
     actions = [
-        "ec2:CreateTags",
-        "ec2:DeleteTags"
+      "ec2:CreateTags",
+      "ec2:DeleteTags"
     ]
     resources = ["arn:aws:ec2:*:*:security-group/*"]
     condition {
@@ -281,15 +286,15 @@ data "aws_iam_policy_document" "aws-lb-controller" {
       test     = "Null"
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
       values   = ["false"]
-    }    
-  }  
+    }
+  }
 
   statement {
     effect = "Allow"
     actions = [
-        "ec2:AuthorizeSecurityGroupIngress",
-        "ec2:RevokeSecurityGroupIngress",
-        "ec2:DeleteSecurityGroup"
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:DeleteSecurityGroup"
     ]
     resources = ["*"]
     condition {
@@ -297,13 +302,13 @@ data "aws_iam_policy_document" "aws-lb-controller" {
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
       values   = ["false"]
     }
-  }  
+  }
 
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:CreateLoadBalancer",
-        "elasticloadbalancing:CreateTargetGroup"
+      "elasticloadbalancing:CreateLoadBalancer",
+      "elasticloadbalancing:CreateTargetGroup"
     ]
     resources = ["*"]
     condition {
@@ -316,10 +321,10 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:CreateListener",
-        "elasticloadbalancing:DeleteListener",
-        "elasticloadbalancing:CreateRule",
-        "elasticloadbalancing:DeleteRule"
+      "elasticloadbalancing:CreateListener",
+      "elasticloadbalancing:DeleteListener",
+      "elasticloadbalancing:CreateRule",
+      "elasticloadbalancing:DeleteRule"
     ]
     resources = ["*"]
   }
@@ -327,13 +332,13 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:AddTags",
-        "elasticloadbalancing:RemoveTags"
+      "elasticloadbalancing:AddTags",
+      "elasticloadbalancing:RemoveTags"
     ]
     resources = [
-        "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
-        "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
-        "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
+      "arn:aws:elasticloadbalancing:*:*:targetgroup/*/*",
+      "arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*",
+      "arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*"
     ]
     condition {
       test     = "Null"
@@ -345,33 +350,33 @@ data "aws_iam_policy_document" "aws-lb-controller" {
       variable = "aws:ResourceTag/elbv2.k8s.aws/cluster"
       values   = ["false"]
     }
-  } 
+  }
 
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:AddTags",
-        "elasticloadbalancing:RemoveTags"
+      "elasticloadbalancing:AddTags",
+      "elasticloadbalancing:RemoveTags"
     ]
     resources = [
-        "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
-        "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
-        "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
-        "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"
+      "arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*",
+      "arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*",
+      "arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*",
+      "arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*"
     ]
   }
 
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:ModifyLoadBalancerAttributes",
-        "elasticloadbalancing:SetIpAddressType",
-        "elasticloadbalancing:SetSecurityGroups",
-        "elasticloadbalancing:SetSubnets",
-        "elasticloadbalancing:DeleteLoadBalancer",
-        "elasticloadbalancing:ModifyTargetGroup",
-        "elasticloadbalancing:ModifyTargetGroupAttributes",
-        "elasticloadbalancing:DeleteTargetGroup"
+      "elasticloadbalancing:ModifyLoadBalancerAttributes",
+      "elasticloadbalancing:SetIpAddressType",
+      "elasticloadbalancing:SetSecurityGroups",
+      "elasticloadbalancing:SetSubnets",
+      "elasticloadbalancing:DeleteLoadBalancer",
+      "elasticloadbalancing:ModifyTargetGroup",
+      "elasticloadbalancing:ModifyTargetGroupAttributes",
+      "elasticloadbalancing:DeleteTargetGroup"
     ]
     resources = ["*"]
     condition {
@@ -384,8 +389,8 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:RegisterTargets",
-        "elasticloadbalancing:DeregisterTargets"
+      "elasticloadbalancing:RegisterTargets",
+      "elasticloadbalancing:DeregisterTargets"
     ]
     resources = ["arn:aws:elasticloadbalancing:*:*:targetgroup/*/*"]
   }
@@ -393,11 +398,11 @@ data "aws_iam_policy_document" "aws-lb-controller" {
   statement {
     effect = "Allow"
     actions = [
-        "elasticloadbalancing:SetWebAcl",
-        "elasticloadbalancing:ModifyListener",
-        "elasticloadbalancing:AddListenerCertificates",
-        "elasticloadbalancing:RemoveListenerCertificates",
-        "elasticloadbalancing:ModifyRule"
+      "elasticloadbalancing:SetWebAcl",
+      "elasticloadbalancing:ModifyListener",
+      "elasticloadbalancing:AddListenerCertificates",
+      "elasticloadbalancing:RemoveListenerCertificates",
+      "elasticloadbalancing:ModifyRule"
     ]
     resources = ["*"]
   }
@@ -430,7 +435,7 @@ resource "aws_ec2_tag" "private-subnets-eks-elb" {
 # https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/
 
 resource "kubectl_manifest" "ingressclassparams-alb" {
-  yaml_body  = <<-EOF
+  yaml_body = <<-EOF
     apiVersion: elbv2.k8s.aws/v1beta1
     kind: IngressClassParams
     metadata:
@@ -453,7 +458,7 @@ resource "kubernetes_ingress_class_v1" "alb" {
     name = "alb"
     annotations = {
       "ingressclass.kubernetes.io/is-default-class" = "false"
-      terraform = "true"
+      terraform                                     = "true"
     }
   }
   spec {

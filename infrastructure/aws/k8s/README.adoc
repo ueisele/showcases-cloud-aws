@@ -91,6 +91,8 @@ However, using a single ConfigMap makes it hard and error prone to manage identi
 
 The link:https://github.com/rustrial/aws-eks-iam-auth-controller[EKS IAM Auth Controller] closes the gap by implementing a Custom Resource Controller, updating the aws-auth ConfigMap from IAMIdentityMapping objects. Once link:https://github.com/aws/containers-roadmap/issues/550[#550] or link:https://github.com/aws/containers-roadmap/issues/512[#512] is resolved this controller will no longer be needed.
 
+Terraform automatically creates IAM identity mappings for users specified in the variable `k8s_admin_users`.
+
 You can check for the latest versions and print the default _values.yaml_ with the following commands:
 
 [source,bash]
@@ -193,6 +195,43 @@ helm repo update
 helm search repo external-dns
 helm show values external-dns/external-dns
 ----
+
+=== Traefik
+
+https://github.com/traefik/traefik-helm-chart
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add traefik https://helm.traefik.io/traefik
+helm repo update
+helm search repo traefik
+helm show values traefik/traefik
+----
+
+For simple authentication a middleware with name `basic-auth-default` is created.
+
+.Example for authentication with basic auth
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-basic-auth-default@kubernetescrd
+----
+
+.Determine credentials
+[source,bash]
+----
+terraform output --raw traefik-basic-auth-default-credentials
+----
+
+Services:
+
+* Traefik Dashboard: https://traefik.showcase.aws.uweeisele.dev/
 
 === Cluster Auto Scaler
 

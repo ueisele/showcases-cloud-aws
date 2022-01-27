@@ -11,15 +11,15 @@ resource "helm_release" "ebs-csi-driver" {
   chart      = "aws-ebs-csi-driver"
   version    = "2.6.2"
 
-  namespace  = "kube-system"
+  namespace = "kube-system"
 
   set {
-    name = "fullnameOverride"
+    name  = "fullnameOverride"
     value = "ebs-csi-controller"
   }
 
   set {
-    name = "nameOverride"
+    name  = "nameOverride"
     value = "ebs-csi-controller"
   }
 
@@ -27,30 +27,32 @@ resource "helm_release" "ebs-csi-driver" {
     controller = {
       replicaCount = 1
 
+      priorityClassName = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
+
       resources = {
         limits = {
-          cpu = "100m"
+          cpu    = "100m"
           memory = "128Mi"
         }
         requests = {
-          cpu = "100m"
+          cpu    = "100m"
           memory = "128Mi"
         }
       }
 
       serviceAccount = {
         create = true
-        name = "ebs-csi-controller-sa"
+        name   = "ebs-csi-controller-sa"
         annotations = {
           "eks.amazonaws.com/role-arn" = aws_iam_role.ebs-csi-assume-role.arn
         }
       }
 
       tolerations = [{
-        key = "system"
+        key      = "system"
         operator = "Equal"
-        value = "true"
-        effect = "NoSchedule"
+        value    = "true"
+        effect   = "NoSchedule"
       }]
 
       affinity = {
@@ -59,19 +61,19 @@ resource "helm_release" "ebs-csi-driver" {
             nodeSelectorTerms = [{
               matchExpressions = [
                 {
-                  key = "eks.amazonaws.com/nodegroup"
+                  key      = "eks.amazonaws.com/nodegroup"
                   operator = "In"
-                  values = [local.eks_cluster_system_node_group_name]
+                  values   = [local.eks_cluster_system_node_group_name]
                 },
                 {
-                  key = "kubernetes.io/os"
+                  key      = "kubernetes.io/os"
                   operator = "In"
-                  values = ["linux"]
+                  values   = ["linux"]
                 },
                 {
-                  key = "kubernetes.io/arch"
+                  key      = "kubernetes.io/arch"
                   operator = "In"
-                  values = ["amd64","arm64"]
+                  values   = ["amd64", "arm64"]
                 }
               ]
             }]
@@ -83,9 +85,9 @@ resource "helm_release" "ebs-csi-driver" {
               podAffinityTerm = {
                 labelSelector = {
                   matchExpressions = [{
-                    key = "app.kubernetes.io/name"
+                    key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values = ["ebs-csi-controller"]
+                    values   = ["ebs-csi-controller"]
                   }]
                 }
                 topologyKey = "kubernetes.io/hostname"
@@ -96,9 +98,9 @@ resource "helm_release" "ebs-csi-driver" {
               podAffinityTerm = {
                 labelSelector = {
                   matchExpressions = [{
-                    key = "app.kubernetes.io/name"
+                    key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values = ["ebs-csi-controller"]
+                    values   = ["ebs-csi-controller"]
                   }]
                 }
                 topologyKey = "failure-domain.beta.kubernetes.io/zone"
@@ -149,7 +151,7 @@ resource "aws_iam_role_policy_attachment" "ebs-csi-driver-policy-attachment" {
 }
 
 resource "aws_iam_policy" "ebs-csi-driver-policy" {
-  name = "${var.environment}-${var.module}-ebs-csi-driver-policy"
+  name        = "${var.environment}-${var.module}-ebs-csi-driver-policy"
   description = "EBS CSI Driver Plugin Policy for ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.ebs-csi-driver-policy-document.json
 }
@@ -173,7 +175,7 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
+    effect  = "Allow"
     actions = ["ec2:CreateTags"]
     resources = [
       "arn:aws:ec2:*:*:volume/*",
@@ -182,7 +184,7 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
     condition {
       test     = "StringEquals"
       variable = "ec2:CreateAction"
-      values   = [
+      values = [
         "CreateVolume",
         "CreateSnapshot"
       ]
@@ -190,7 +192,7 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
+    effect  = "Allow"
     actions = ["ec2:DeleteTags"]
     resources = [
       "arn:aws:ec2:*:*:volume/*",
@@ -199,8 +201,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:CreateVolume"]
+    effect    = "Allow"
+    actions   = ["ec2:CreateVolume"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -210,8 +212,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:CreateVolume"]
+    effect    = "Allow"
+    actions   = ["ec2:CreateVolume"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -221,8 +223,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:CreateVolume"]
+    effect    = "Allow"
+    actions   = ["ec2:CreateVolume"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -232,8 +234,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteVolume"]
+    effect    = "Allow"
+    actions   = ["ec2:DeleteVolume"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -243,8 +245,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteVolume"]
+    effect    = "Allow"
+    actions   = ["ec2:DeleteVolume"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -254,8 +256,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteVolume"]
+    effect    = "Allow"
+    actions   = ["ec2:DeleteVolume"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -265,8 +267,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteSnapshot"]
+    effect    = "Allow"
+    actions   = ["ec2:DeleteSnapshot"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -276,8 +278,8 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["ec2:DeleteSnapshot"]
+    effect    = "Allow"
+    actions   = ["ec2:DeleteSnapshot"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -294,7 +296,7 @@ data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
 ## Update existing gp2 storage class
 
 resource "kubectl_manifest" "gp2" {
-  yaml_body  = <<-EOF
+  yaml_body = <<-EOF
     apiVersion: storage.k8s.io/v1
     kind: StorageClass
     metadata:
@@ -318,12 +320,12 @@ resource "kubernetes_storage_class_v1" "gp3" {
       "storageclass.kubernetes.io/is-default-class" = true
     }
   }
-  storage_provisioner     = "ebs.csi.aws.com"
-  volume_binding_mode     = "WaitForFirstConsumer"
-  reclaim_policy          = "Delete"
-  allow_volume_expansion  = true
+  storage_provisioner    = "ebs.csi.aws.com"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  reclaim_policy         = "Delete"
+  allow_volume_expansion = true
   parameters = {
-    type = "gp3"
+    type                        = "gp3"
     "csi.storage.k8s.io/fstype" = "ext4"
     #iops = "3000"
     #throughput = "125"
@@ -334,12 +336,12 @@ resource "kubernetes_storage_class_v1" "st1" {
   metadata {
     name = "st1"
   }
-  storage_provisioner     = "ebs.csi.aws.com"
-  volume_binding_mode     = "WaitForFirstConsumer"
-  reclaim_policy          = "Delete"
-  allow_volume_expansion  = true
+  storage_provisioner    = "ebs.csi.aws.com"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  reclaim_policy         = "Delete"
+  allow_volume_expansion = true
   parameters = {
-    type = "st1"
+    type                        = "st1"
     "csi.storage.k8s.io/fstype" = "ext4"
   }
 }
@@ -348,12 +350,12 @@ resource "kubernetes_storage_class_v1" "sc1" {
   metadata {
     name = "sc1"
   }
-  storage_provisioner     = "ebs.csi.aws.com"
-  volume_binding_mode     = "WaitForFirstConsumer"
-  reclaim_policy          = "Delete"
-  allow_volume_expansion  = true
+  storage_provisioner    = "ebs.csi.aws.com"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  reclaim_policy         = "Delete"
+  allow_volume_expansion = true
   parameters = {
-    type = "sc1"
+    type                        = "sc1"
     "csi.storage.k8s.io/fstype" = "ext4"
   }
 }

@@ -11,15 +11,15 @@ resource "helm_release" "efs-csi-driver" {
   chart      = "aws-efs-csi-driver"
   version    = "2.2.3"
 
-  namespace  = "kube-system"
+  namespace = "kube-system"
 
   set {
-    name = "fullnameOverride"
+    name  = "fullnameOverride"
     value = "efs-csi-controller"
   }
 
   set {
-    name = "nameOverride"
+    name  = "nameOverride"
     value = "efs-csi-controller"
   }
 
@@ -29,28 +29,28 @@ resource "helm_release" "efs-csi-driver" {
     controller = {
       resources = {
         limits = {
-          cpu = "100m"
+          cpu    = "100m"
           memory = "128Mi"
         }
         requests = {
-          cpu = "100m"
+          cpu    = "100m"
           memory = "128Mi"
         }
       }
 
       serviceAccount = {
         create = true
-        name = "efs-csi-controller-sa"
+        name   = "efs-csi-controller-sa"
         annotations = {
           "eks.amazonaws.com/role-arn" = aws_iam_role.efs-csi-driver-assume-role.arn
         }
       }
 
       tolerations = [{
-        key = "system"
+        key      = "system"
         operator = "Equal"
-        value = "true"
-        effect = "NoSchedule"
+        value    = "true"
+        effect   = "NoSchedule"
       }]
 
       affinity = {
@@ -59,19 +59,19 @@ resource "helm_release" "efs-csi-driver" {
             nodeSelectorTerms = [{
               matchExpressions = [
                 {
-                  key = "eks.amazonaws.com/nodegroup"
+                  key      = "eks.amazonaws.com/nodegroup"
                   operator = "In"
-                  values = [local.eks_cluster_system_node_group_name]
+                  values   = [local.eks_cluster_system_node_group_name]
                 },
                 {
-                  key = "kubernetes.io/os"
+                  key      = "kubernetes.io/os"
                   operator = "In"
-                  values = ["linux"]
+                  values   = ["linux"]
                 },
                 {
-                  key = "kubernetes.io/arch"
+                  key      = "kubernetes.io/arch"
                   operator = "In"
-                  values = ["amd64","arm64"]
+                  values   = ["amd64", "arm64"]
                 }
               ]
             }]
@@ -83,9 +83,9 @@ resource "helm_release" "efs-csi-driver" {
               podAffinityTerm = {
                 labelSelector = {
                   matchExpressions = [{
-                    key = "app.kubernetes.io/name"
+                    key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values = ["efs-csi-controller"]
+                    values   = ["efs-csi-controller"]
                   }]
                 }
                 topologyKey = "kubernetes.io/hostname"
@@ -96,9 +96,9 @@ resource "helm_release" "efs-csi-driver" {
               podAffinityTerm = {
                 labelSelector = {
                   matchExpressions = [{
-                    key = "app.kubernetes.io/name"
+                    key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values = ["efs-csi-controller"]
+                    values   = ["efs-csi-controller"]
                   }]
                 }
                 topologyKey = "failure-domain.beta.kubernetes.io/zone"
@@ -149,7 +149,7 @@ resource "aws_iam_role_policy_attachment" "efs-csi-driver" {
 }
 
 resource "aws_iam_policy" "efs-csi-driver" {
-  name = "${var.environment}-${var.module}-efs-csi-driver"
+  name        = "${var.environment}-${var.module}-efs-csi-driver"
   description = "EKS External DNS Controller for Cluster ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.efs-csi-driver.json
 }
@@ -162,11 +162,11 @@ data "aws_iam_policy_document" "efs-csi-driver" {
       "elasticfilesystem:DescribeFileSystems"
     ]
     resources = ["*"]
-  }  
+  }
 
   statement {
-    effect = "Allow"
-    actions = ["elasticfilesystem:CreateAccessPoint"]
+    effect    = "Allow"
+    actions   = ["elasticfilesystem:CreateAccessPoint"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -176,8 +176,8 @@ data "aws_iam_policy_document" "efs-csi-driver" {
   }
 
   statement {
-    effect = "Allow"
-    actions = ["elasticfilesystem:DeleteAccessPoint"]
+    effect    = "Allow"
+    actions   = ["elasticfilesystem:DeleteAccessPoint"]
     resources = ["*"]
     condition {
       test     = "StringLike"
@@ -205,10 +205,10 @@ resource "aws_efs_file_system" "efs-pod-storage" {
   }
 
   tags = {
-    Name = "${var.environment}-${var.module}-efs-pod-storage"
+    Name        = "${var.environment}-${var.module}-efs-pod-storage"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -225,17 +225,17 @@ resource "aws_security_group" "efs" {
   description = "Security group for all nodes in the cluster"
   vpc_id      = data.aws_vpc.main.id
   ingress {
-    from_port   = 2049
-    to_port     = 2049
-    protocol    = "tcp"
-    cidr_blocks = [data.aws_vpc.main.cidr_block]
+    from_port        = 2049
+    to_port          = 2049
+    protocol         = "tcp"
+    cidr_blocks      = [data.aws_vpc.main.cidr_block]
     ipv6_cidr_blocks = [data.aws_vpc.main.ipv6_cidr_block]
   }
   tags = {
-    Name = "${var.environment}-${var.module}-efs"
+    Name        = "${var.environment}-${var.module}-efs"
     Environment = var.environment
-    Module = var.module
-    Terraform = "true"
+    Module      = var.module
+    Terraform   = "true"
   }
 }
 
@@ -248,12 +248,12 @@ resource "kubernetes_storage_class_v1" "efs" {
     name = "efs"
   }
   storage_provisioner = "efs.csi.aws.com"
-  mount_options = ["tls"]
-  reclaim_policy = "Delete"
+  mount_options       = ["tls"]
+  reclaim_policy      = "Delete"
   volume_binding_mode = "Immediate"
   parameters = {
     provisioningMode = "efs-ap"
-    fileSystemId = aws_efs_file_system.efs-pod-storage.id
-    directoryPerms: "700"
+    fileSystemId     = aws_efs_file_system.efs-pod-storage.id
+    directoryPerms : "700"
   }
 }

@@ -4,12 +4,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
-    traefik.ingress.kubernetes.io/router.middlewares: kube-system-api-auth@kubernetescrd
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.middlewares: kube-system-basic-auth-default@kubernetescrd
   name: nginx-hello-traefik
 spec:
   rules:
-  - host: nginx-hello.showcase.aws.uweeisele.dev
+  - host: nginx-hello-traefik.showcase.aws.uweeisele.dev
     http:
       paths:
       - path: /

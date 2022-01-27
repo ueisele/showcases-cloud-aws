@@ -10,32 +10,32 @@ resource "helm_release" "external-dns-controller" {
   chart      = "external-dns"
   version    = "1.7.1"
 
-  namespace  = "kube-system"
+  namespace = "kube-system"
 
   set {
-    name = "fullnameOverride"
+    name  = "fullnameOverride"
     value = "external-dns-controller"
   }
 
   set {
-    name = "nameOverride"
+    name  = "nameOverride"
     value = "external-dns-controller"
   }
 
   set {
-    name = "provider"
+    name  = "provider"
     value = "aws"
   }
 
   set {
-    name = "priorityClassName"
-    value = "system-cluster-critical"
+    name  = "priorityClassName"
+    value = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
   }
 
   values = [yamlencode({
     serviceAccount = {
       create = true
-      name = "external-dns-controller-sa"
+      name   = "external-dns-controller-sa"
       annotations = {
         "eks.amazonaws.com/role-arn" = aws_iam_role.external-dns-controller-assume-role.arn
       }
@@ -43,20 +43,20 @@ resource "helm_release" "external-dns-controller" {
 
     resources = {
       limits = {
-        cpu = "100m"
+        cpu    = "100m"
         memory = "96Mi"
       }
       requests = {
-        cpu = "50m"
+        cpu    = "50m"
         memory = "64Mi"
       }
     }
 
     tolerations = [{
-      key = "system"
+      key      = "system"
       operator = "Equal"
-      value = "true"
-      effect = "NoSchedule"
+      value    = "true"
+      effect   = "NoSchedule"
     }]
 
     affinity = {
@@ -65,53 +65,23 @@ resource "helm_release" "external-dns-controller" {
           nodeSelectorTerms = [{
             matchExpressions = [
               {
-                key = "eks.amazonaws.com/nodegroup"
+                key      = "eks.amazonaws.com/nodegroup"
                 operator = "In"
-                values = [local.eks_cluster_system_node_group_name]
+                values   = [local.eks_cluster_system_node_group_name]
               },
               {
-                key = "kubernetes.io/os"
+                key      = "kubernetes.io/os"
                 operator = "In"
-                values = ["linux"]
+                values   = ["linux"]
               },
               {
-                key = "kubernetes.io/arch"
+                key      = "kubernetes.io/arch"
                 operator = "In"
-                values = ["amd64","arm64"]
+                values   = ["amd64", "arm64"]
               }
             ]
           }]
         }
-      }
-      podAntiAffinity = {
-        preferredDuringSchedulingIgnoredDuringExecution = [
-          {
-            podAffinityTerm = {
-              labelSelector = {
-                matchExpressions = [{
-                  key = "app.kubernetes.io/name"
-                  operator = "In"
-                  values = ["external-dns-controller"]
-                }]
-              }
-              topologyKey = "kubernetes.io/hostname"
-            }
-            weight = 100
-          },
-          {
-            podAffinityTerm = {
-              labelSelector = {
-                matchExpressions = [{
-                  key = "app.kubernetes.io/name"
-                  operator = "In"
-                  values = ["external-dns-controller"]
-                }]
-              }
-              topologyKey = "failure-domain.beta.kubernetes.io/zone"
-            }
-            weight = 100
-          }
-        ]
       }
     }
   })]
@@ -150,17 +120,17 @@ resource "aws_iam_role_policy_attachment" "external-dns-controller" {
 }
 
 resource "aws_iam_policy" "external-dns-controller" {
-  name = "${var.environment}-${var.module}-external-dns-controller"
+  name        = "${var.environment}-${var.module}-external-dns-controller"
   description = "EKS External DNS Controller for Cluster ${var.environment}-${var.module}"
   policy      = data.aws_iam_policy_document.external-dns-controller.json
 }
 
 data "aws_iam_policy_document" "external-dns-controller" {
   statement {
-    effect = "Allow"
-    actions = ["route53:ChangeResourceRecordSets"]
+    effect    = "Allow"
+    actions   = ["route53:ChangeResourceRecordSets"]
     resources = ["arn:aws:route53:::hostedzone/*"]
-  }  
+  }
 
   statement {
     effect = "Allow"
@@ -169,5 +139,5 @@ data "aws_iam_policy_document" "external-dns-controller" {
       "route53:ListResourceRecordSets"
     ]
     resources = ["*"]
-  }  
+  }
 }
