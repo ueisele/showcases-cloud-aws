@@ -177,6 +177,7 @@ output "eks-fargate-profile-role-arn" {
 #################################
 # EKS Node Groups               #
 #################################
+# Example custom launch template: # https://github.com/aws-samples/amazon-eks-bottlerocket-mngnodegrp-terraform/blob/main/launch_template.tf
 
 # System Node Group
 
