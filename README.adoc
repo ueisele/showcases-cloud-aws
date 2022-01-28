@@ -2,8 +2,6 @@
 
 The goal of this repository is to demonstrate and evaluate AWS services and to provide an infrastructure for additional showcases.
 
-*IMPORTANT*: Work is still in progress!
-
 == Overview
 
 *link:infrastructure[Infrastructure]*

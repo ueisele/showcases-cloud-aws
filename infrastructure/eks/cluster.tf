@@ -227,11 +227,11 @@ resource "aws_eks_node_group" "system" {
   ]
 }
 
-# Main
+# Main x64
 
-resource "aws_eks_node_group" "main" {
+resource "aws_eks_node_group" "main_x64" {
   cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "${aws_eks_cluster.main.name}-main"
+  node_group_name = "${aws_eks_cluster.main.name}-main-x64"
   node_role_arn   = aws_iam_role.eks-node-group.arn
   subnet_ids      = data.aws_subnet_ids.private.ids
 
@@ -269,6 +269,51 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.eks-node-group-AmazonEC2ContainerRegistryReadOnly,
   ]
 }
+
+# Main arm64
+
+resource "aws_eks_node_group" "main_arm64" {
+  cluster_name    = aws_eks_cluster.main.name
+  node_group_name = "${aws_eks_cluster.main.name}-main-arm64"
+  node_role_arn   = aws_iam_role.eks-node-group.arn
+  subnet_ids      = data.aws_subnet_ids.private.ids
+
+  ami_type       = "BOTTLEROCKET_ARM_64"
+  instance_types = ["t4g.medium"]
+  disk_size      = 20
+
+  scaling_config {
+    max_size     = 9
+    min_size     = 0
+    desired_size = 0
+  }
+
+  # Optional: Allow external changes without Terraform plan difference
+  lifecycle {
+    ignore_changes = [scaling_config[0].desired_size]
+  }
+
+  update_config {
+    max_unavailable = 2
+  }
+
+  tags = {
+    Environment                                              = var.environment
+    Module                                                   = var.module
+    Terraform                                                = "true"
+    "k8s.io/cluster-autoscaler/enabled"                      = "true"
+    "k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}" = "owned"
+  }
+
+  # Ensure that IAM Role permissions are created before and deleted after EKS Node Group handling.
+  # Otherwise, EKS will not be able to properly delete EC2 Instances and Elastic Network Interfaces.
+  depends_on = [
+    aws_iam_role_policy_attachment.eks-node-group-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.eks-node-group-AmazonEC2ContainerRegistryReadOnly,
+  ]
+}
+
+# IAM
 
 resource "aws_iam_role" "eks-node-group" {
   name = "${var.environment}-${var.module}-node-group"
