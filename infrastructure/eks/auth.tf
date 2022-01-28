@@ -3,7 +3,6 @@
 #####################################
 # https://www.eksworkshop.com/beginner/091_iam-groups/
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
 resource "aws_iam_role" "k8sadmin" {
   name = "${var.environment}-${var.module}-k8sadmin"
 
@@ -26,7 +25,6 @@ resource "aws_iam_role" "k8sadmin" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
 resource "aws_iam_policy" "eks-describe-cluster" {
   name = "${var.environment}-${var.module}-eks-describe-cluster"
   policy = jsonencode({
@@ -43,13 +41,11 @@ resource "aws_iam_policy" "eks-describe-cluster" {
   })
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "k8sadmin-eks-describe-cluster" {
   policy_arn = aws_iam_policy.eks-describe-cluster.arn
   role       = aws_iam_role.k8sadmin.name
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_policy
 resource "aws_iam_policy" "k8sadmin-assumerole" {
   name = "${var.environment}-${var.module}-k8sadmin-assumerole"
   policy = jsonencode({
@@ -65,12 +61,10 @@ resource "aws_iam_policy" "k8sadmin-assumerole" {
   })
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_group
 resource "aws_iam_group" "k8sadmin" {
   name = "${var.environment}-${var.module}-k8sadmin"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_group_policy_attachment
 resource "aws_iam_group_policy_attachment" "k8sadmin-assumerole" {
   group      = aws_iam_group.k8sadmin.name
   policy_arn = aws_iam_policy.k8sadmin-assumerole.arn

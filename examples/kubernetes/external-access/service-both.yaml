@@ -7,7 +7,7 @@ metadata:
     service.beta.kubernetes.io/aws-load-balancer-ip-address-type: dualstack
     service.beta.kubernetes.io/aws-load-balancer-type: external
     service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
-    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:eu-central-1:${ACCOUNT_ID}:certificate/${SSL_CERT_ID}
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: ${PUBLIC_HOSTED_ZONE_CERT_ARN}
     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
     service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"

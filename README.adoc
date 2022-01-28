@@ -19,6 +19,7 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastru
 *link:examples[Examples]*
 
 * link:examples/kubernetes[Kubernetes]
+* link:examples/kafka[Kafka]
 
 == Prerequisites
 

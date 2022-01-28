@@ -2,7 +2,6 @@
 # VPC                           #
 #################################
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc
 resource "aws_vpc" "main" {
   cidr_block                       = var.vpc_cidr
   assign_generated_ipv6_cidr_block = true
@@ -17,11 +16,6 @@ resource "aws_vpc" "main" {
   }
 }
 
-output "vpc-id" {
-  value = aws_vpc.main.id
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
 resource "aws_subnet" "public" {
   count = length(var.public_subnets)
 
@@ -41,7 +35,6 @@ resource "aws_subnet" "public" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
 resource "aws_route_table" "public" {
   count = length(var.public_subnets) > 0 ? 1 : 0
 
@@ -54,7 +47,6 @@ resource "aws_route_table" "public" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association
 resource "aws_route_table_association" "public" {
   count = length(var.public_subnets)
 
@@ -62,7 +54,6 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public[0].id
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/subnet
 resource "aws_subnet" "private" {
   count = length(var.private_subnets)
 
@@ -82,7 +73,6 @@ resource "aws_subnet" "private" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table
 resource "aws_route_table" "private" {
   count = length(var.private_subnets)
 
@@ -95,7 +85,6 @@ resource "aws_route_table" "private" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route_table_association
 resource "aws_route_table_association" "private" {
   count = length(var.private_subnets)
 
@@ -107,7 +96,6 @@ resource "aws_route_table_association" "private" {
 # Internet                      #
 #################################
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/internet_gateway
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.main.id
 
@@ -118,7 +106,6 @@ resource "aws_internet_gateway" "gw" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
 resource "aws_route" "public_internet_gateway" {
   count = length(var.public_subnets) > 0 ? 1 : 0
 
@@ -127,7 +114,6 @@ resource "aws_route" "public_internet_gateway" {
   gateway_id             = aws_internet_gateway.gw.id
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
 resource "aws_route" "public_internet_gateway_ipv6" {
   count = length(var.public_subnet_ipv6_prefixes) > 0 ? 1 : 0
 
@@ -136,7 +122,6 @@ resource "aws_route" "public_internet_gateway_ipv6" {
   gateway_id                  = aws_internet_gateway.gw.id
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eip
 resource "aws_eip" "nat" {
   count = length(var.private_subnets) > 0 ? min(var.nat_gateway_count, length(var.private_subnets)) : 0
 
@@ -149,7 +134,6 @@ resource "aws_eip" "nat" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/nat_gateway
 resource "aws_nat_gateway" "nat" {
   count = length(var.private_subnets) > 0 ? min(var.nat_gateway_count, length(var.private_subnets)) : 0
 
@@ -165,7 +149,6 @@ resource "aws_nat_gateway" "nat" {
   depends_on = [aws_internet_gateway.gw]
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
 resource "aws_route" "private_nat_gateway" {
   count = length(var.public_subnets) > 0 ? length(var.private_subnets) : 0
 
@@ -174,7 +157,6 @@ resource "aws_route" "private_nat_gateway" {
   nat_gateway_id         = element(aws_nat_gateway.nat.*.id, count.index % length(aws_nat_gateway.nat.*))
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/egress_only_internet_gateway
 resource "aws_egress_only_internet_gateway" "gw" {
   count = length(var.private_subnet_ipv6_prefixes) > 0 ? 1 : 0
 
@@ -188,7 +170,6 @@ resource "aws_egress_only_internet_gateway" "gw" {
 
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route
 resource "aws_route" "private_ipv6_egress" {
   count = length(var.private_subnet_ipv6_prefixes)
 
@@ -200,13 +181,12 @@ resource "aws_route" "private_ipv6_egress" {
 #################################
 # Route53                       #
 #################################
+# https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-considerations.html
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/route53_zone
 data "aws_route53_zone" "main" {
   name = "${var.route53_public_main_zone}."
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone
 resource "aws_route53_zone" "public" {
   name = "${var.environment}.${var.route53_public_main_zone}"
 
@@ -216,11 +196,6 @@ resource "aws_route53_zone" "public" {
   }
 }
 
-output "public-hosted-zone-id" {
-  value = aws_route53_zone.public.id
-}
-
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record
 resource "aws_route53_record" "public-ns" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = aws_route53_zone.public.name
@@ -229,8 +204,6 @@ resource "aws_route53_record" "public-ns" {
   records = aws_route53_zone.public.name_servers
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone
-# https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/hosted-zone-private-considerations.html
 resource "aws_route53_zone" "private" {
   name = "${var.environment}.${var.route53_public_main_zone}"
 
@@ -244,15 +217,10 @@ resource "aws_route53_zone" "private" {
   }
 }
 
-output "private-hosted-zone-id" {
-  value = aws_route53_zone.public.id
-}
-
 #################################
 # ACM Certificates              #
 #################################
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate
 resource "aws_acm_certificate" "public" {
   domain_name       = "*.${aws_route53_zone.public.name}"
   validation_method = "DNS"
@@ -267,7 +235,6 @@ resource "aws_acm_certificate" "public" {
   }
 }
 
-# # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record
 resource "aws_route53_record" "public-validation" {
   for_each = {
     for dvo in aws_acm_certificate.public.domain_validation_options : dvo.domain_name => {
@@ -285,7 +252,6 @@ resource "aws_route53_record" "public-validation" {
   zone_id         = aws_route53_zone.public.zone_id
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate_validation
 resource "aws_acm_certificate_validation" "public" {
   certificate_arn         = aws_acm_certificate.public.arn
   validation_record_fqdns = [for record in aws_route53_record.public-validation : record.fqdn]
@@ -299,7 +265,6 @@ output "public-certificate-arn" {
 # DHCP                          #
 #################################
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_dhcp_options
 resource "aws_vpc_dhcp_options" "main" {
   domain_name         = aws_route53_zone.private.name
   domain_name_servers = ["AmazonProvidedDNS"]
@@ -312,7 +277,6 @@ resource "aws_vpc_dhcp_options" "main" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/vpc_dhcp_options_association
 resource "aws_vpc_dhcp_options_association" "this" {
   vpc_id          = aws_vpc.main.id
   dhcp_options_id = aws_vpc_dhcp_options.main.id
@@ -324,7 +288,6 @@ resource "aws_vpc_dhcp_options_association" "this" {
 
 ### Default ACL
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/default_network_acl
 resource "aws_default_network_acl" "default" {
   default_network_acl_id = aws_vpc.main.default_network_acl_id
 
@@ -337,7 +300,6 @@ resource "aws_default_network_acl" "default" {
 
 ### Public ACL
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl
 resource "aws_network_acl" "public" {
   count = length(var.public_subnets) > 0 ? 1 : 0
 
@@ -353,7 +315,6 @@ resource "aws_network_acl" "public" {
 
 ## Public ACL Ingress Rules
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv4_http" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -367,7 +328,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv4_http" {
   to_port        = 80
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv6_http" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -381,7 +341,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv6_http" {
   to_port         = 80
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv4_https" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -395,7 +354,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv4_https" {
   to_port        = 443
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv6_https" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -409,7 +367,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv6_https" {
   to_port         = 443
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv4_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -423,7 +380,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv4_ephemeral" {
   to_port        = 65535
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv6_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -437,7 +393,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv6_ephemeral" {
   to_port         = 65535
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv4_vpc" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -451,7 +406,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv4_vpc" {
   to_port        = 0
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_ingress_ipv6_vpc" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -467,7 +421,6 @@ resource "aws_network_acl_rule" "public_ingress_ipv6_vpc" {
 
 ## Public ACL Egress Rules
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv4_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -481,7 +434,6 @@ resource "aws_network_acl_rule" "public_egress_ipv4_ephemeral" {
   to_port        = 65535
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv6_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -495,7 +447,6 @@ resource "aws_network_acl_rule" "public_egress_ipv6_ephemeral" {
   to_port         = 65535
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv4_http" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -509,7 +460,6 @@ resource "aws_network_acl_rule" "public_egress_ipv4_http" {
   to_port        = 80
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv6_http" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -523,7 +473,6 @@ resource "aws_network_acl_rule" "public_egress_ipv6_http" {
   to_port         = 80
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv4_https" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -537,7 +486,6 @@ resource "aws_network_acl_rule" "public_egress_ipv4_https" {
   to_port        = 443
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv6_https" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -551,7 +499,6 @@ resource "aws_network_acl_rule" "public_egress_ipv6_https" {
   to_port         = 443
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv4_kafka" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -565,7 +512,6 @@ resource "aws_network_acl_rule" "public_egress_ipv4_kafka" {
   to_port        = 9092
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv6_kafka" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -579,7 +525,6 @@ resource "aws_network_acl_rule" "public_egress_ipv6_kafka" {
   to_port         = 9092
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv4_vpc" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -593,7 +538,6 @@ resource "aws_network_acl_rule" "public_egress_ipv4_vpc" {
   to_port        = 0
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "public_egress_ipv6_vpc" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 
@@ -609,7 +553,6 @@ resource "aws_network_acl_rule" "public_egress_ipv6_vpc" {
 
 ### Private ACL
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl
 resource "aws_network_acl" "private" {
   count = length(var.private_subnets) > 0 ? 1 : 0
 
@@ -625,7 +568,6 @@ resource "aws_network_acl" "private" {
 
 ## Private ACL Ingress Rules
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_ingress_ipv4_ephemeral" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -639,7 +581,6 @@ resource "aws_network_acl_rule" "private_ingress_ipv4_ephemeral" {
   to_port        = 65535
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_ingress_ipv6_ephemeral" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -653,7 +594,6 @@ resource "aws_network_acl_rule" "private_ingress_ipv6_ephemeral" {
   to_port         = 65535
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_ingress_ipv4_vpc" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -667,7 +607,6 @@ resource "aws_network_acl_rule" "private_ingress_ipv4_vpc" {
   to_port        = 0
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_ingress_ipv6_vpc" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -683,7 +622,6 @@ resource "aws_network_acl_rule" "private_ingress_ipv6_vpc" {
 
 ## Private ACL Egress Rules
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv4_http" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -697,7 +635,6 @@ resource "aws_network_acl_rule" "private_egress_ipv4_http" {
   to_port        = 80
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv6_http" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -711,7 +648,6 @@ resource "aws_network_acl_rule" "private_egress_ipv6_http" {
   to_port         = 80
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv4_https" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -725,7 +661,6 @@ resource "aws_network_acl_rule" "private_egress_ipv4_https" {
   to_port        = 443
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv6_https" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -739,7 +674,6 @@ resource "aws_network_acl_rule" "private_egress_ipv6_https" {
   to_port         = 443
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv4_kafka" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -753,7 +687,6 @@ resource "aws_network_acl_rule" "private_egress_ipv4_kafka" {
   to_port        = 9092
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv6_kafka" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -767,7 +700,6 @@ resource "aws_network_acl_rule" "private_egress_ipv6_kafka" {
   to_port         = 9092
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv4_vpc" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -781,7 +713,6 @@ resource "aws_network_acl_rule" "private_egress_ipv4_vpc" {
   to_port        = 0
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/network_acl_rule
 resource "aws_network_acl_rule" "private_egress_ipv6_vpc" {
   count = length(aws_network_acl.private.*) > 0 ? 1 : 0
 
@@ -799,7 +730,6 @@ resource "aws_network_acl_rule" "private_egress_ipv6_vpc" {
 # Security (SG)                 #
 #################################
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/default_security_group
 resource "aws_default_security_group" "default" {
   vpc_id = aws_vpc.main.id
 
@@ -836,7 +766,6 @@ resource "aws_default_security_group" "default" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
 resource "aws_security_group" "public" {
   name = "${var.environment}-public"
 
@@ -878,7 +807,6 @@ resource "aws_security_group" "public" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
 resource "aws_security_group" "private" {
   name = "${var.environment}-private"
 
@@ -920,7 +848,6 @@ resource "aws_security_group" "private" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
 resource "aws_security_group" "web" {
   name = "${var.environment}-web"
 

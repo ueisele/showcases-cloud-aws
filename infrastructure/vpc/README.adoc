@@ -11,11 +11,6 @@ terraform init -backend-config="profile=tu-dev-ueisele"
 
 [source,bash]
 ----
-terraform plan --var "profile=tu-dev-ueisele"
-----
-
-[source,bash]
-----
 terraform apply --var "profile=tu-dev-ueisele"
 ----
 
@@ -23,8 +18,5 @@ terraform apply --var "profile=tu-dev-ueisele"
 
 [source,bash]
 ----
-export VPC_ID="$(terraform output --raw vpc-id)"
-export PUBLIC_HOSTED_ZONE_ID="$(terraform output --raw public-hosted-zone-id)"
-export PRIVATE_HOSTED_ZONE_ID="$(terraform output --raw private-hosted-zone-id)"
 export PUBLIC_HOSTED_ZONE_CERT_ARN="$(terraform output --raw public-certificate-arn)"
 ----

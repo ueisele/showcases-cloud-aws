@@ -69,17 +69,6 @@ resource "aws_iam_role_policy_attachment" "eks-cluster-AmazonEKSVPCResourceContr
   role       = aws_iam_role.eks-cluster.name
 }
 
-output "cluster-name" {
-  value = aws_eks_cluster.main.name
-}
-output "endpoint" {
-  value = aws_eks_cluster.main.endpoint
-}
-
-output "kubeconfig-certificate-authority-data" {
-  value = aws_eks_cluster.main.certificate_authority[0].data
-}
-
 #############################################
 # EKS IRSA (IAM Roles for Service Accounts) #
 #############################################
@@ -191,7 +180,6 @@ output "eks-fargate-profile-role-arn" {
 
 # System Node Group
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_node_group
 resource "aws_eks_node_group" "system" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${aws_eks_cluster.main.name}-system"
@@ -241,7 +229,6 @@ resource "aws_eks_node_group" "system" {
 
 # Main
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_node_group
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${aws_eks_cluster.main.name}-main"
@@ -283,7 +270,6 @@ resource "aws_eks_node_group" "main" {
   ]
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
 resource "aws_iam_role" "eks-node-group" {
   name = "${var.environment}-${var.module}-node-group"
 
@@ -306,19 +292,16 @@ resource "aws_iam_role" "eks-node-group" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEKSWorkerNodePolicy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
   role       = aws_iam_role.eks-node-group.name
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.eks-node-group.name
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "eks-node-group-AmazonSSMManagedInstanceCore" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   role       = aws_iam_role.eks-node-group.name
@@ -332,10 +315,8 @@ output "eks-node-group-role-arn" {
 # EKS Addons                    #
 #################################
 # https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
-
 # VPC-CNI (https://docs.aws.amazon.com/eks/latest/userguide/managing-vpc-cni.html)
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/iam_policy_document
 data "aws_iam_policy_document" "vpn-cni-assume-role-policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -354,19 +335,16 @@ data "aws_iam_policy_document" "vpn-cni-assume-role-policy" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role
 resource "aws_iam_role" "vpn-cni-assume-role" {
   assume_role_policy = data.aws_iam_policy_document.vpn-cni-assume-role-policy.json
   name               = "${var.environment}-${var.module}-vpn-cni-assume-role"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role_policy_attachment
 resource "aws_iam_role_policy_attachment" "vpn-cni-AmazonEKS_CNI_Policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
   role       = aws_iam_role.vpn-cni-assume-role.name
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
 resource "aws_eks_addon" "vpc-cni" {
   cluster_name             = aws_eks_cluster.main.name
   addon_name               = "vpc-cni"
@@ -382,7 +360,6 @@ resource "aws_eks_addon" "vpc-cni" {
 
 # Kube-Proxy
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
 resource "aws_eks_addon" "kube-proxy" {
   cluster_name      = aws_eks_cluster.main.name
   addon_name        = "kube-proxy"
@@ -401,7 +378,6 @@ resource "aws_eks_addon" "kube-proxy" {
 
 # Cluster Security Group
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
 resource "aws_security_group" "eks-cluster" {
   name        = "${var.environment}-${var.module}-cluster"
   description = "Cluster communication with worker nodes"
@@ -414,7 +390,6 @@ resource "aws_security_group" "eks-cluster" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group_rule" "nodes-inbound" {
   description              = "Allow worker nodes to communicate with the cluster API Server"
   from_port                = 443
@@ -425,7 +400,6 @@ resource "aws_security_group_rule" "nodes-inbound" {
   type                     = "ingress"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group_rule" "nodes-outbound" {
   description              = "Allow cluster API Server to communicate with the worker nodes"
   from_port                = 1024
@@ -438,7 +412,6 @@ resource "aws_security_group_rule" "nodes-outbound" {
 
 # Worker Security Group
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group
 resource "aws_security_group" "eks-node-group" {
   name        = "${var.environment}-${var.module}-node-group"
   description = "Security group for all nodes in the cluster"
@@ -457,14 +430,12 @@ resource "aws_security_group" "eks-node-group" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/ec2_tag
 resource "aws_ec2_tag" "sg-eks-node-group" {
   resource_id = aws_security_group.eks-node-group.id
   key         = "kubernetes.io/cluster/${aws_eks_cluster.main.name}"
   value       = "owned"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group_rule" "nodes" {
   description              = "Allow nodes to communicate with each other"
   from_port                = 0
@@ -475,7 +446,6 @@ resource "aws_security_group_rule" "nodes" {
   type                     = "ingress"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group_rule" "cluster-inbound" {
   description              = "Allow worker Kubelets and pods to receive communication from the cluster control plane"
   from_port                = 1025
@@ -486,7 +456,6 @@ resource "aws_security_group_rule" "cluster-inbound" {
   type                     = "ingress"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group_rule" "private-inbound" {
   description              = "Allow inbound from private subnets"
   from_port                = 0
@@ -497,7 +466,6 @@ resource "aws_security_group_rule" "private-inbound" {
   type                     = "ingress"
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule
 resource "aws_security_group_rule" "public-inbound" {
   description              = "Allow inbound from public subnets"
   from_port                = 0

@@ -11,11 +11,6 @@ terraform init -backend-config="profile=tu-dev-ueisele"
 
 [source,bash]
 ----
-terraform plan --var "profile=tu-dev-ueisele"
-----
-
-[source,bash]
-----
 terraform apply --var "profile=tu-dev-ueisele"
 ----
 
@@ -24,14 +19,11 @@ terraform apply --var "profile=tu-dev-ueisele"
 [source,bash]
 ----
 export ACCOUNT_ID="$(terraform output --raw account-id)"
-export CLUSTER_NAME="$(terraform output -raw cluster-name)"
-export VPC_ID="$(terraform output --raw vpc-id)"
 export EKS_NODE_GROUP_ROLE_ARN="$(terraform output --raw eks-node-group-role-arn)"
 export EKS_FARGATE_PROFILE_ROLE_ARN="$(terraform output --raw eks-fargate-profile-role-arn)"
 export K8SADMIN_ROLE_ARN="$(terraform output --raw ks8admin-role-arn)"
-export K8SADMIN_ASSUMEROLE_POLICY_AREN="$(terraform output --raw ks8admin-assumerole-policy-arn)"
-export AWS_LB_ROLE_ARN="$(terraform output --raw aws-load-balancer-controller-role-arn)"
-export EXTERNAL_DNS_ROLE_ARN="$(terraform output --raw external-dns-controller-role-arn)"
+export K8SADMIN_ASSUMEROLE_POLICY_ARN="$(terraform output --raw ks8admin-assumerole-policy-arn)"
+export K8SADMIN_GROUP_ARN="$(terraform output --raw ks8admin-group-arn)"
 ----
 
 == Update Kubeconfig
@@ -41,33 +33,37 @@ export EXTERNAL_DNS_ROLE_ARN="$(terraform output --raw external-dns-controller-r
 aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name showcase-eks
 ----
 
-In order to run this command, `eks:DescribeCluster` is required.
+In order to run this command, `eks:DescribeCluster` permission is required.
 
 == K8S Permissions
 
 The user which created the EKS cluster is automatically authorized to access the cluster.
 
-Other users and must be authorized explicitely. How to do this is described at link:../k8s/README.adoc[../k8s/README.adoc] in the section `EKS IAM Auth Controller`.
+Other users must be authorized explicitely. How to do this is described at link:../k8s/README.adoc[../k8s/README.adoc] in the section `EKS IAM Auth Controller`.
 
-In order to be able to become an admin, a user or group must have the `ks8admin-assumerole-policy-arn` attached.
+In order to be able to become an admin, a user or group must have the `${K8SADMIN_ASSUMEROLE_POLICY_ARN}` attached.
+The group `${K8SADMIN_GROUP_ARN}` has the `${K8SADMIN_ASSUMEROLE_POLICY_ARN}` already assigned. Every user, which is in this group is able to assume the `${K8SADMIN_ROLE_ARN}` role. 
+
+If you add the following snippets to your `~/.aws/config` and `~/.aws/credentials` files, the use `awsuser` assumes the `${K8SADMIN_ROLE_ARN}` role if profile `k8sadmin` is used. A prerequisite is, that user `awsuser` has the `${K8SADMIN_ASSUMEROLE_POLICY_ARN}` policy assigned.
 
 [source,bash]
 ----
 mkdir -p ~/.aws
 
 cat << EOF >> ~/.aws/config
-[profile admin]
+[profile k8sadmin]
+region = eu-central-1
 role_arn=${K8SADMIN_ROLE_ARN}
-source_profile=eksAdmin
+source_profile=awsuser
 EOF
 ----
 
 [source,bash]
 ----
 cat << EOF >> ~/.aws/credentials
-[eksAdmin]
-aws_access_key_id=${EKS_ADMIN_ACCESS_KEY_ID}
-aws_secret_access_key=${EKS_ADMIN_SECRET_ACCESS_KEY}
+[awsuser]
+aws_access_key_id=${AWS_ACCESS_KEY_ID}
+aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
 EOF
 ----
 

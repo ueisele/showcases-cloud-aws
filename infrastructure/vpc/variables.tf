@@ -45,5 +45,5 @@ variable "private_subnet_ipv6_prefixes" {
 
 variable "nat_gateway_count" {
   default        = 1
-  desdescription = "Only one by default to save money"
+  description = "Only one by default to save money"
 }

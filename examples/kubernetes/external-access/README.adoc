@@ -176,7 +176,7 @@ If you need to explicitly specify a Certificate, you can add the annotation `lin
 .Explicit definition of a certificate for the Ingress
 [source,yaml]
 ----
-alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:eu-central-1:${ACCOUNT_ID}:certificate/${SSL_CERT_ID}
+alb.ingress.kubernetes.io/certificate-arn: ${PUBLIC_HOSTED_ZONE_CERT_ARN}
 ----
 
 ==== Demo

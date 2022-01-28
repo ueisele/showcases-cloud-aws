@@ -3,18 +3,13 @@
 :toclevels: 2
 :sectnums:
 
-= Kubernetes Terraform Provisioning
+= Terraform Kubernetes Provisioning
 
 == Apply Terraform
 
 [source,bash]
 ----
 terraform init -backend-config="profile=tu-dev-ueisele"
-----
-
-[source,bash]
-----
-terraform plan --var "profile=tu-dev-ueisele"
 ----
 
 [source,bash]
