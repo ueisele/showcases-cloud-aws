@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zookeeper-data
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: zookeeper
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  containers:
+  - name: zookeeper
+    image: confluentinc/cp-zookeeper:7.0.1
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+    env:
+    - name: ZOOKEEPER_CLIENT_PORT
+      value: "2181"
+    - name: KAFKA_HEAP_OPTS
+      value: "-Xmx384M -Xms384M"
+    ports:
+    - containerPort: 2181
+      name: zk
+    volumeMounts:
+    - name: data
+      mountPath: /var/lib/zookeeper
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: zookeeper-data
+  securityContext:
+    fsGroup: 1000
+  enableServiceLinks: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  ports:
+  - name: zk
+    port: 2181
+    targetPort: zk
+    protocol: TCP
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper

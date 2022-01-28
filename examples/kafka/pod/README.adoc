@@ -1,0 +1,129 @@
+= Kafka Single Node with ZooKeeper
+
+Environment with one Zookeeper and one Kafka Broker with simplest possible configuration.
+
+== Docker Compose
+
+.Navigate into Docker Compose directory
+[source,bash]
+----
+cd dc/
+----
+
+.Run Docker Compose
+[source,bash]
+----
+docker compose up -d
+----
+
+.Check if containers are starting
+[source,bash]
+----
+watch -n 1 docker compose ps
+----
+
+.Check container logs
+[source,bash]
+----
+docker compose logs -f 
+----
+
+.Go inti Cli container
+[source,bash]
+----
+docker compose exec kafka-cli bash
+----
+
+Now you can jump to the `Work with Kafka`.
+
+.Finally you can terminate everything
+[source,bash]
+----
+docker compose down -v
+----
+
+== Kubernetes
+
+.Create namespace for examples
+[source,bash]
+----
+export NS_EXAMPLES=examples-$(whoami)
+kubectl create ns ${NS_EXAMPLES}
+----
+
+.Apply Kubernetes manifests
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} apply -f k8s
+----
+
+.Check if Pods are starting
+[source,bash]
+----
+watch -n 1 kubectl -n ${NS_EXAMPLES} get pods
+----
+
+.Check logs of Pods
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} logs -f zookeeper
+kubectl -n ${NS_EXAMPLES} logs -f kafka
+----
+
+.Go inti Cli container
+[source,bash]
+----
+kubectl run -n ${NS_EXAMPLES} --rm -it --restart=Never --image=confluentinc/cp-kafka:7.0.1 kafka-cli -- bash
+----
+
+Now you can jump to the `Work with Kafka`.
+
+.Finally you can terminate everything
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} delete -f k8s
+----
+
+== Work with Kafka
+
+If you are in the CLI container or pod, you can run the following commands.
+
+.List topics
+[source,bash]
+----
+kafka-topics --bootstrap-server kafka:9092 --list
+----
+
+.Create new Topic
+[source,bash]
+----
+kafka-topics --bootstrap-server kafka:9092 \
+    --create \
+    --topic my-topic --replication-factor 1 --partitions 3
+----
+
+.Describe the topic
+[source,bash]
+----
+kafka-topics --bootstrap-server kafka:9092 --describe --topic my-topic
+----
+
+.Describe the topic
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic my-topic \
+    --property parse.key=false
+----
+
+.Consume from the topic
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic my-topic \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----

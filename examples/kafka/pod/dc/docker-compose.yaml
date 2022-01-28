@@ -1,0 +1,43 @@
+#############################################################
+# Kafka with ZooKeeper                                      #
+# 1x ZooKeeper + 1x Kafka                                   #
+#############################################################
+---
+version: '2.4'
+services:
+
+  # https://docs.confluent.io/platform/current/installation/docker/config-reference.html#zk-configuration
+  # https://docs.confluent.io/platform/current/installation/docker/operations/external-volumes.html#data-volumes-for-kafka-and-zk
+  zookeeper:
+      image: confluentinc/cp-zookeeper:${CONFLUENT_VERSION}
+      restart: always
+      volumes:
+      - zookeeper:/var/lib/zookeeper
+      environment:
+        ZOOKEEPER_CLIENT_PORT: 2181
+
+  # https://docs.confluent.io/platform/current/installation/docker/config-reference.html#confluent-ak-configuration
+  # https://docs.confluent.io/platform/current/installation/docker/operations/external-volumes.html#data-volumes-for-kafka-and-zk
+  kafka:
+    image: confluentinc/cp-kafka:${CONFLUENT_VERSION}
+    restart: always
+    depends_on:
+    - zookeeper
+    volumes:
+    - kafka:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+  kafka-cli:
+    image: confluentinc/cp-kafka:${CONFLUENT_VERSION}
+    entrypoint: /bin/bash
+    tty: true
+
+volumes:
+    zookeeper:
+    kafka:
