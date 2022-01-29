@@ -68,12 +68,12 @@ resource "helm_release" "aws-load-balancer-controller" {
 
     resources = {
       limits = {
-        cpu    = "100m"
-        memory = "128Mi"
+        cpu    = "50m"
+        memory = "64Mi"
       }
       requests = {
-        cpu    = "100m"
-        memory = "128Mi"
+        cpu    = "50m"
+        memory = "64Mi"
       }
     }
 

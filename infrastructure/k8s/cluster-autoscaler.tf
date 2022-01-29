@@ -93,12 +93,12 @@ resource "helm_release" "cluster-autoscaler" {
 
     resources = {
       limits = {
-        cpu    = "100m"
-        memory = "369Mi"
+        cpu    = "50m"
+        memory = "64Mi"
       }
       requests = {
-        cpu    = "100m"
-        memory = "369Mi"
+        cpu    = "50m"
+        memory = "64Mi"
       }
     }
 

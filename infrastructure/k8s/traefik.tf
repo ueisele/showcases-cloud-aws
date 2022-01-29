@@ -122,12 +122,12 @@ resource "helm_release" "traefik" {
 
     resources = {
       limits = {
-        cpu    = "400m"
-        memory = "369Mi"
+        cpu    = "250m"
+        memory = "200Mi"
       }
       requests = {
-        cpu    = "400m"
-        memory = "369Mi"
+        cpu    = "250m"
+        memory = "200Mi"
       }
     }
 
@@ -274,7 +274,7 @@ resource "kubectl_manifest" "ingressroute-traefik-dashboard" {
 }
 
 resource "kubernetes_service_v1" "traefik-dashboard" {
-  count = var.traefik_internal_expose ? 1 : 0
+  count = var.traefik_dashboard_expose ? 1 : 0
 
   metadata {
     name      = "traefik-dashboard"
@@ -300,7 +300,7 @@ resource "kubernetes_service_v1" "traefik-dashboard" {
 }
 
 resource "kubernetes_ingress_v1" "traefik-dashboard" {
-  count = var.traefik_internal_expose ? 1 : 0
+  count = var.traefik_dashboard_expose ? 1 : 0
 
   metadata {
     name      = "traefik-dashboard"

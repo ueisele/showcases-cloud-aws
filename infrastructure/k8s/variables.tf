@@ -28,7 +28,12 @@ variable "k8s_admin_users" {
   default = ["ueisele"]
 }
 
-variable "traefik_internal_expose" {
+variable "traefik_dashboard_expose" {
+  type    = bool
+  default = true
+}
+
+variable "kubernetes_dashboard_expose" {
   type    = bool
   default = true
 }

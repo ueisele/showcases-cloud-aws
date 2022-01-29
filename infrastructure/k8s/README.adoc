@@ -269,3 +269,20 @@ helm search repo metrics-server
 https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
 
 Kubernetes Dashboard		  200m	 200Mi	2	x
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard
+helm repo update
+helm show values kubernetes-dashboard/kubernetes-dashboard
+helm search repo kubernetes-dashboard
+----
+
+Login with the following token:
+
+[source,bash]
+----
+terraform output --raw kubernetes_dashboard_readonly_cluster_token
+----

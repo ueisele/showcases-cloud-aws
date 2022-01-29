@@ -55,11 +55,11 @@ resource "helm_release" "coredns" {
     resources = {
       limits = {
         cpu    = "100m"
-        memory = "192Mi"
+        memory = "64Mi"
       }
       requests = {
         cpu    = "100m"
-        memory = "128Mi"
+        memory = "64Mi"
       }
     }
 

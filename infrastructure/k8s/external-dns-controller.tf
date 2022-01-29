@@ -43,8 +43,8 @@ resource "helm_release" "external-dns-controller" {
 
     resources = {
       limits = {
-        cpu    = "100m"
-        memory = "96Mi"
+        cpu    = "50m"
+        memory = "64Mi"
       }
       requests = {
         cpu    = "50m"

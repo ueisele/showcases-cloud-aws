@@ -24,12 +24,12 @@ resource "helm_release" "eks-iam-auth-controller" {
   values = [yamlencode({
     resources = {
       limits = {
-        cpu    = "100m"
-        memory = "32Mi"
+        cpu    = "10m"
+        memory = "16Mi"
       }
       requests = {
-        cpu    = "50m"
-        memory = "32Mi"
+        cpu    = "10m"
+        memory = "16Mi"
       }
     }
 

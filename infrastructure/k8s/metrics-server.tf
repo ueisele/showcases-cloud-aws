@@ -35,17 +35,17 @@ resource "helm_release" "metrics_server" {
     resources = {
       limits = {
         cpu    = "100m"
-        memory = "200Mi"
+        memory = "64Mi"
       }
       requests = {
         cpu    = "100m"
-        memory = "200Mi"
+        memory = "64Mi"
       }
     }
 
     podDisruptionBudget = {
       enabled        = true
-      minAvailable = 1
+      maxUnavailable = 1
     }
 
     updateStrategy = {
