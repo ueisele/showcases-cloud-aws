@@ -29,8 +29,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add coredns https://coredns.github.io/helm
 helm repo update
-helm search repo coredns
 helm show values coredns/coredns
+helm search repo coredns
 ----
 
 === EKS IAM Auth Controller
@@ -90,8 +90,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add aws-eks-iam-auth-controller https://rustrial.github.io/aws-eks-iam-auth-controller
 helm repo update
-helm search repo aws-eks-iam-auth-controller
 helm show values aws-eks-iam-auth-controller/rustrial-aws-eks-iam-auth-controller
+helm search repo aws-eks-iam-auth-controller
 ----
 
 === EBS CSI Driver
@@ -123,8 +123,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
 helm repo update
-helm search repo aws-ebs-csi-driver
 helm show values aws-ebs-csi-driver/aws-ebs-csi-driver
+helm search repo aws-ebs-csi-driver
 ----
 
 === EFS CSI Driver
@@ -137,8 +137,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add aws-efs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
 helm repo update
-helm search repo aws-efs-csi-driver
 helm show values aws-efs-csi-driver/aws-efs-csi-driver
+helm search repo aws-efs-csi-driver
 ----
 
 === AWS Load Balancer Controller
@@ -151,8 +151,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add eks https://aws.github.io/eks-charts
 helm repo update
-helm search repo eks
 helm show values eks/aws-load-balancer-controller
+helm search repo eks
 ----
 
 The AWS Load Balancer Controller is a provider for Ingress. Ingresses can be implemented by different controllers, often with different configuration.
@@ -183,8 +183,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
 helm repo update
-helm search repo external-dns
 helm show values external-dns/external-dns
+helm search repo external-dns
 ----
 
 === Traefik
@@ -197,8 +197,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add traefik https://helm.traefik.io/traefik
 helm repo update
-helm search repo traefik
 helm show values traefik/traefik
+helm search repo traefik
 ----
 
 For simple authentication a middleware with name `basic-auth-default` is created.
@@ -234,8 +234,8 @@ You can check for the latest versions and print the default _values.yaml_ with t
 ----
 helm repo add autoscaler https://kubernetes.github.io/autoscaler
 helm repo update
-helm search repo autoscaler
 helm show values autoscaler/cluster-autoscaler
+helm search repo autoscaler
 ----
 
 The configuration parameters are described at: https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#what-are-the-parameters-to-ca
@@ -250,16 +250,22 @@ k8s.io/cluster-autoscaler/${aws_eks_cluster.main.name}: "owned"
 
 === Kube Metrics Server
 
-Kube Metrics Server		    100m	 200Mi	2	x
+https://github.com/kubernetes-sigs/metrics-server
+
+At the moment, the link:https://github.com/kubernetes-sigs/metrics-server/tree/master/charts[`metrics-server`] Helm chart is maintained localy at link:charts/metrics-server[charts/metrics-server]. If the Helm chart for version _0.6.0_ has been released, the chart could be used from repository https://kubernetes-sigs.github.io/metrics-server.
+
+You can check for the latest versions and print the default _values.yaml_ with the following commands:
+
+[source,bash]
+----
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server
+helm repo update
+helm show values metrics-server/metrics-server
+helm search repo metrics-server 
+----
 
 === Kubernetes Dashboard
 
+https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+
 Kubernetes Dashboard		  200m	 200Mi	2	x
-
-== Next Steps
-
-* Kubernetes Metrics Server: https://github.com/kubernetes-sigs/metrics-server
-* Kubernetes Dashboard: https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
-* Cluster Autoscaler: https://docs.aws.amazon.com/de_de/eks/latest/userguide/cluster-autoscaler.html
-* Security Groups for Pods: https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
-* Network Isolation with Calico: https://docs.aws.amazon.com/eks/latest/userguide/calico.html

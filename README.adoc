@@ -82,9 +82,14 @@ terraform apply --var "profile=tu-dev-ueisele"
 
 == Next Steps
 
-Kubernetes Authentication and Authorization:
+=== Kubernetes Authentication and Authorization:
 
 * https://aws.amazon.com/blogs/containers/introducing-oidc-identity-provider-authentication-amazon-eks/
 * https://aws.amazon.com/blogs/containers/kubernetes-rbac-and-iam-integration-in-amazon-eks-using-a-java-based-kubernetes-operator/
 * https://github.com/rustrial/aws-eks-iam-auth-controller
 * https://github.com/aws-samples/k8s-rbac-iam-java-operator/tree/master/java-operator
+
+=== Security
+
+* Security Groups for Pods: https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
+* Network Isolation with Calico: https://docs.aws.amazon.com/eks/latest/userguide/calico.html
