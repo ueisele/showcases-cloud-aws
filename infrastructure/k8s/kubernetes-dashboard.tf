@@ -188,7 +188,7 @@ resource "kubernetes_deployment_v1" "kubernetes_dashboard" {
   }
 
   spec {
-    replicas = 2
+    replicas = 1
 
     strategy {
       type = "RollingUpdate"
@@ -381,7 +381,7 @@ resource "kubernetes_stateful_set_v1" "dashboard_metrics_scraper" {
   }
 
   spec {
-    replicas = 2
+    replicas = 1
     pod_management_policy = "Parallel"
 
     update_strategy {
@@ -535,6 +535,8 @@ resource "kubernetes_stateful_set_v1" "dashboard_metrics_scraper" {
       }
     }
   }
+
+  depends_on = [kubernetes_storage_class_v1.efs]
 }
 
 resource "kubernetes_pod_disruption_budget_v1" "dashboard_metrics_scraper" {
@@ -571,7 +573,6 @@ resource "kubernetes_ingress_v1" "kubernetes_dashboard" {
     }
     annotations = {
       "traefik.ingress.kubernetes.io/router.entrypoints" = "websecure"
-      //"traefik.ingress.kubernetes.io/router.middlewares" = "${kubectl_manifest.traefik-middleware-basic-auth-default.namespace}-${kubectl_manifest.traefik-middleware-basic-auth-default.name}@kubernetescrd"
     }
   }
 
@@ -595,6 +596,11 @@ resource "kubernetes_ingress_v1" "kubernetes_dashboard" {
       }
     }
   }
+
+  depends_on = [
+    helm_release.traefik,
+    helm_release.external-dns-controller
+  ]
 }
 
 #################################

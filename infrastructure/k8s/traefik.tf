@@ -188,6 +188,8 @@ resource "helm_release" "traefik" {
       }
     }
   })]
+
+  depends_on = [kubernetes_ingress_class_v1.alb]
 }
 
 #################################
@@ -336,4 +338,9 @@ resource "kubernetes_ingress_v1" "traefik-dashboard" {
       }
     }
   }
+
+  depends_on = [
+    helm_release.traefik,
+    helm_release.external-dns-controller
+  ]
 }

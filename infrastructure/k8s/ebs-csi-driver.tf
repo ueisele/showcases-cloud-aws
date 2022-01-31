@@ -116,6 +116,11 @@ resource "helm_release" "ebs-csi-driver" {
       tolerateAllTaints = true
     }
   })]
+
+  depends_on = [
+    helm_release.coredns,
+    aws_iam_role_policy_attachment.ebs-csi-driver-policy-attachment
+  ]
 }
 
 #################################
@@ -338,6 +343,8 @@ resource "kubernetes_storage_class_v1" "gp3" {
     #iops = "3000"
     #throughput = "125"
   }
+
+  depends_on = [helm_release.ebs-csi-driver]
 }
 
 resource "kubernetes_storage_class_v1" "st1" {
@@ -358,6 +365,8 @@ resource "kubernetes_storage_class_v1" "st1" {
     type                        = "st1"
     "csi.storage.k8s.io/fstype" = "ext4"
   }
+
+  depends_on = [helm_release.ebs-csi-driver]
 }
 
 resource "kubernetes_storage_class_v1" "sc1" {
@@ -378,6 +387,8 @@ resource "kubernetes_storage_class_v1" "sc1" {
     type                        = "sc1"
     "csi.storage.k8s.io/fstype" = "ext4"
   }
+
+  depends_on = [helm_release.ebs-csi-driver]
 }
 
 #################################

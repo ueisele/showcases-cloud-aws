@@ -165,6 +165,11 @@ resource "helm_release" "cluster-autoscaler" {
       }
     }
   })]
+
+  depends_on = [
+    helm_release.coredns,
+    aws_iam_role_policy_attachment.cluster-autoscaler
+  ]
 }
 
 #################################

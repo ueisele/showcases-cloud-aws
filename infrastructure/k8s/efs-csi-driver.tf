@@ -114,6 +114,11 @@ resource "helm_release" "efs-csi-driver" {
       tolerateAllTaints = true
     }
   })]
+
+  depends_on = [
+    helm_release.coredns,
+    aws_iam_role_policy_attachment.efs-csi-driver
+  ]
 }
 
 #################################
@@ -289,4 +294,9 @@ resource "kubernetes_storage_class_v1" "efs" {
     fileSystemId     = aws_efs_file_system.efs-pod-storage.id
     directoryPerms : "700"
   }
+
+  depends_on = [
+    helm_release.efs-csi-driver,
+    aws_efs_mount_target.efs-pod-storage
+  ]
 }

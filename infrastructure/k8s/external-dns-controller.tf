@@ -85,6 +85,11 @@ resource "helm_release" "external-dns-controller" {
       }
     }
   })]
+
+  depends_on = [
+    helm_release.coredns,
+    aws_iam_role_policy_attachment.external-dns-controller
+  ]
 }
 
 #################################

@@ -140,6 +140,13 @@ resource "helm_release" "aws-load-balancer-controller" {
       }
     }
   })]
+
+  depends_on = [
+    helm_release.coredns,
+    aws_iam_role_policy_attachment.aws-lb-controller,
+    aws_ec2_tag.public-subnets-eks-elb,
+    aws_ec2_tag.private-subnets-eks-elb
+  ]
 }
 
 #################################
