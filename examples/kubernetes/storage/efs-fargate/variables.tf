@@ -9,7 +9,3 @@ variable "profile" {
 variable "environment" {
   default = "showcase"
 }
-
-variable "module" {
-  default = "eks"
-}

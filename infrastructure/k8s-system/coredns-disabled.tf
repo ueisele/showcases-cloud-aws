@@ -3,8 +3,13 @@
 #################################
 # https://docs.aws.amazon.com/eks/latest/userguide/managing-coredns.html
 
+/*
+locals {
+  coredns_name = "coredns"
+}
+
 resource "helm_release" "coredns" {
-  name       = "coredns"
+  name       = local.coredns_name
   repository = "https://coredns.github.io/helm"
   chart      = "coredns"
   version    = "1.16.5"
@@ -13,12 +18,12 @@ resource "helm_release" "coredns" {
 
   set {
     name  = "fullnameOverride"
-    value = "coredns"
+    value = local.coredns_name
   }
 
   set {
     name  = "nameOverride"
-    value = "coredns"
+    value = local.coredns_name
   }
 
   set {
@@ -33,7 +38,7 @@ resource "helm_release" "coredns" {
 
   set {
     name  = "priorityClassName"
-    value = kubernetes_priority_class_v1.high-priority-system-service.metadata.0.name
+    value = kubernetes_priority_class_v1.service_system_high_priority.metadata.0.name
   }
 
   set {
@@ -67,23 +72,23 @@ resource "helm_release" "coredns" {
       maxUnavailable = 1
     }
 
-    tolerations = [{
-      key      = "system"
-      operator = "Equal"
-      value    = "true"
-      effect   = "NoSchedule"
-    }]
-
     affinity = {
       nodeAffinity = {
+        preferredDuringSchedulingIgnoredDuringExecution = [
+          {
+            weight = 100
+            preference = {
+              matchExpressions = [{
+                key      = "kubernetes.io/arch"
+                operator = "In"
+                values   = ["arm64"]
+              }]
+            }
+          }
+        ],
         requiredDuringSchedulingIgnoredDuringExecution = {
           nodeSelectorTerms = [{
             matchExpressions = [
-              {
-                key      = "eks.amazonaws.com/nodegroup"
-                operator = "In"
-                values   = [local.eks_cluster_system_node_group_name]
-              },
               {
                 key      = "kubernetes.io/os"
                 operator = "In"
@@ -99,46 +104,36 @@ resource "helm_release" "coredns" {
         }
       }
       podAntiAffinity = {
-        requiredDuringSchedulingIgnoredDuringExecution = [
+        preferredDuringSchedulingIgnoredDuringExecution = [
           {
-            labelSelector = {
-              matchExpressions = [{
-                key      = "app.kubernetes.io/name"
-                operator = "In"
-                values   = ["coredns"]
-              }]
+            podAffinityTerm = {
+              labelSelector = {
+                matchExpressions = [{
+                  key      = "app.kubernetes.io/name"
+                  operator = "In"
+                  values   = [local.coredns_name]
+                }]
+              }
+              topologyKey = "kubernetes.io/hostname"
             }
-            topologyKey = "kubernetes.io/hostname"
+            weight = 50
           },
           {
-            labelSelector = {
-              matchExpressions = [{
-                key      = "app.kubernetes.io/name"
-                operator = "In"
-                values   = ["coredns"]
-              }]
+            podAffinityTerm = {
+              labelSelector = {
+                matchExpressions = [{
+                  key      = "app.kubernetes.io/name"
+                  operator = "In"
+                  values   = [local.coredns_name]
+                }]
+              }
+              topologyKey = "failure-domain.beta.kubernetes.io/zone"
             }
-            topologyKey = "failure-domain.beta.kubernetes.io/zone"
+            weight = 25
           }
         ]
       }
     }
   })]
-}
-
-## CoreDNS EKS Addon
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/eks_addon
-# Cannot be used, because EKS add-ons do not support tolerations
-/*
-resource "aws_eks_addon" "coredns" {
-  cluster_name      = data.aws_eks_cluster.main.name
-  addon_name        = "coredns"
-  resolve_conflicts = "OVERWRITE"
-  tags = {
-    eks_addon = "coredns"
-    Environment = var.environment
-    Module = var.module
-    Terraform = "true"
-  }
 }
 */

@@ -3,8 +3,12 @@
 #################################
 # https://github.com/rustrial/aws-eks-iam-auth-controller
 
-resource "helm_release" "eks-iam-auth-controller" {
-  name       = "eks-iam-auth-controller"
+locals {
+  aws_eks_im_auth_controller_name = "aws-eks-iam-auth-controller"
+}
+
+resource "helm_release" "aws_eks_iam_auth_controller" {
+  name       = local.aws_eks_im_auth_controller_name
   repository = "https://rustrial.github.io/aws-eks-iam-auth-controller"
   chart      = "rustrial-aws-eks-iam-auth-controller"
   version    = "0.1.6"
@@ -13,12 +17,12 @@ resource "helm_release" "eks-iam-auth-controller" {
 
   set {
     name  = "fullnameOverride"
-    value = "eks-iam-auth-controller"
+    value = local.aws_eks_im_auth_controller_name
   }
 
   set {
     name  = "nameOverride"
-    value = "eks-iam-auth-controller"
+    value = local.aws_eks_im_auth_controller_name
   }
 
   values = [yamlencode({
@@ -33,23 +37,23 @@ resource "helm_release" "eks-iam-auth-controller" {
       }
     }
 
-    tolerations = [{
-      key      = "system"
-      operator = "Equal"
-      value    = "true"
-      effect   = "NoSchedule"
-    }]
-
     affinity = {
       nodeAffinity = {
+        preferredDuringSchedulingIgnoredDuringExecution = [
+          {
+            weight = 100
+            preference = {
+              matchExpressions = [{
+                key      = "kubernetes.io/arch"
+                operator = "In"
+                values   = ["arm64"]
+              }]
+            }
+          }
+        ],
         requiredDuringSchedulingIgnoredDuringExecution = {
           nodeSelectorTerms = [{
             matchExpressions = [
-              {
-                key      = "eks.amazonaws.com/nodegroup"
-                operator = "In"
-                values   = [local.eks_cluster_system_node_group_name]
-              },
               {
                 key      = "kubernetes.io/os"
                 operator = "In"
@@ -72,13 +76,13 @@ resource "helm_release" "eks-iam-auth-controller" {
 # Pod Disruption Budget         #
 #################################
 
-resource "kubernetes_pod_disruption_budget_v1" "eks-iam-auth-controller" {
+resource "kubernetes_pod_disruption_budget_v1" "aws_eks_iam_auth_controller" {
   metadata {
-    name      = "eks-iam-auth-controller"
+    name      = local.aws_eks_im_auth_controller_name
     namespace = "kube-system"
     labels = {
-      "app.kubernetes.io/instance"   = "eks-iam-auth-controller"
-      "app.kubernetes.io/name"       = "eks-iam-auth-controller"
+      "app.kubernetes.io/instance"   = local.aws_eks_im_auth_controller_name
+      "app.kubernetes.io/name"       = local.aws_eks_im_auth_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -86,8 +90,8 @@ resource "kubernetes_pod_disruption_budget_v1" "eks-iam-auth-controller" {
     max_unavailable = "1"
     selector {
       match_labels = {
-        "app.kubernetes.io/instance" = "eks-iam-auth-controller"
-        "app.kubernetes.io/name"     = "eks-iam-auth-controller"
+        "app.kubernetes.io/instance" = local.aws_eks_im_auth_controller_name
+        "app.kubernetes.io/name"     = local.aws_eks_im_auth_controller_name
       }
     }
   }
@@ -99,7 +103,7 @@ resource "kubernetes_pod_disruption_budget_v1" "eks-iam-auth-controller" {
 # kubernetes_manifest resource cannot be used because of
 # https://github.com/hashicorp/terraform-provider-kubernetes/pull/1506
 
-resource "kubectl_manifest" "iamidentitymapping-role-eks-node-group" {
+resource "kubectl_manifest" "iamidentitymapping_role_eks_node_group" {
   yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
@@ -109,7 +113,7 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-node-group" {
       labels:
         app.kubernetes.io/managed-by: Terraform
     spec:
-      arn: ${data.aws_iam_role.eks-node-group.arn}
+      arn: ${data.aws_iam_role.eks_node_group.arn}
       username: system:node:{{EC2PrivateDNSName}}
       groups:
       - system:bootstrappers
@@ -117,10 +121,10 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-node-group" {
     EOF
 
   // Requires IAMIdentityMapping CRD 
-  depends_on = [helm_release.eks-iam-auth-controller]
+  depends_on = [helm_release.aws_eks_iam_auth_controller]
 }
 
-resource "kubectl_manifest" "iamidentitymapping-role-eks-fargate-profile" {
+resource "kubectl_manifest" "iamidentitymapping_role_eks_fargate_profile" {
   yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
@@ -130,7 +134,7 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-fargate-profile" {
       labels:
         app.kubernetes.io/managed-by: Terraform
     spec:
-      arn: ${data.aws_iam_role.eks-fargate-profile.arn}
+      arn: ${data.aws_iam_role.eks_fargate_profile.arn}
       username: system:node:{{SessionName}}
       groups:
       - system:bootstrappers
@@ -139,10 +143,10 @@ resource "kubectl_manifest" "iamidentitymapping-role-eks-fargate-profile" {
     EOF
 
   // Requires IAMIdentityMapping CRD 
-  depends_on = [helm_release.eks-iam-auth-controller]
+  depends_on = [helm_release.aws_eks_iam_auth_controller]
 }
 
-resource "kubectl_manifest" "iamidentitymapping-role-k8sadmin" {
+resource "kubectl_manifest" "iamidentitymapping_role_k8sadmin" {
   yaml_body = <<-EOF
     apiVersion: iamauthenticator.k8s.aws/v1alpha1
     kind: IAMIdentityMapping
@@ -159,10 +163,10 @@ resource "kubectl_manifest" "iamidentitymapping-role-k8sadmin" {
     EOF
 
   // Requires IAMIdentityMapping CRD 
-  depends_on = [helm_release.eks-iam-auth-controller]
+  depends_on = [helm_release.aws_eks_iam_auth_controller]
 }
 
-resource "kubectl_manifest" "iamidentitymapping-admin-users" {
+resource "kubectl_manifest" "iamidentitymapping_admin_users" {
   count = length(var.k8s_admin_users)
 
   yaml_body = <<-EOF
@@ -181,5 +185,5 @@ resource "kubectl_manifest" "iamidentitymapping-admin-users" {
     EOF
 
   // Requires IAMIdentityMapping CRD 
-  depends_on = [helm_release.eks-iam-auth-controller]
+  depends_on = [helm_release.aws_eks_iam_auth_controller]
 }

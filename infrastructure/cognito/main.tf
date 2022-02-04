@@ -1,4 +1,3 @@
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool
 resource "aws_cognito_user_pool" "main" {
   name = var.environment
 
@@ -9,13 +8,11 @@ resource "aws_cognito_user_pool" "main" {
   }
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_domain
 resource "aws_cognito_user_pool_domain" "main" {
   domain       = "${var.environment}-${replace(replace(var.route53_public_main_zone, ".", "-"), "aws-", "")}"
   user_pool_id = aws_cognito_user_pool.main.id
 }
 
-# https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/cognito_user_pool_client
 resource "aws_cognito_user_pool_client" "main" {
   name         = var.environment
   user_pool_id = aws_cognito_user_pool.main.id
@@ -35,19 +32,19 @@ resource "aws_cognito_user_pool_client" "main" {
   generate_secret = true
 }
 
-output "user-pool-arn" {
+output "user_pool_arn" {
   value = aws_cognito_user_pool.main.arn
 }
 
-output "user-pool-domain" {
+output "user_pool_domain" {
   value = aws_cognito_user_pool_domain.main.domain
 }
 
-output "user-pool-client-id" {
+output "user_pool_client_id" {
   value = aws_cognito_user_pool_client.main.id
 }
 
-output "user-pool-client-secret" {
+output "user_pool_client_secret" {
   value     = aws_cognito_user_pool_client.main.client_secret
   sensitive = true
 }

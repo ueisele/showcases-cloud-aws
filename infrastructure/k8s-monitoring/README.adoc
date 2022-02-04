@@ -1,0 +1,31 @@
+:toc:
+:toc-title:
+:toclevels: 2
+:sectnums:
+
+= Terraform Kubernetes Provisioning for Monitoring
+
+== Apply Terraform
+
+[source,bash]
+----
+terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
+----
+
+[source,bash]
+----
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
+----
+
+== Components
+
+=== Kubernetes Dashboard
+
+https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+
+Login with the following token:
+
+[source,bash]
+----
+terraform output --raw kubernetes_dashboard_readonly_cluster_token
+----

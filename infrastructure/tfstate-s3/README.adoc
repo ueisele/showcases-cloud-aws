@@ -4,9 +4,9 @@ IMPORTANT: Only apply if the S3 bucket and the DynamoDB table does not exist!
 
 IMPORTANT: The Terraform state has intentionally not been commited to Git. The reason is, that it may contain sensitive information and this is a public repository. 
 
-Ensure you have the required link:required-iam-policy.json[IAM permissions].
-
 == Apply Terraform
+
+Ensure you have the required link:required-iam-policy.json[IAM permissions].
 
 [source,bash]
 ----
@@ -15,5 +15,5 @@ terraform init
 
 [source,bash]
 ----
-terraform apply --var "profile=tu-dev-ueisele"
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 ----

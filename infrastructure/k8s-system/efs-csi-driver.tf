@@ -5,8 +5,13 @@
 # https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html
 # https://aws.amazon.com/de/blogs/aws/new-aws-fargate-for-amazon-eks-now-supports-amazon-efs/
 
-resource "helm_release" "efs-csi-driver" {
-  name       = "efs-csi-driver"
+locals {
+  efs_csi_driver_name     = "efs-csi-driver"
+  efs_csi_controller_name = "efs-csi-controller"
+}
+
+resource "helm_release" "efs_csi_driver" {
+  name       = local.efs_csi_driver_name
   repository = "https://kubernetes-sigs.github.io/aws-efs-csi-driver"
   chart      = "aws-efs-csi-driver"
   version    = "2.2.3"
@@ -15,12 +20,12 @@ resource "helm_release" "efs-csi-driver" {
 
   set {
     name  = "fullnameOverride"
-    value = "efs-csi-controller"
+    value = local.efs_csi_controller_name
   }
 
   set {
     name  = "nameOverride"
-    value = "efs-csi-controller"
+    value = local.efs_csi_controller_name
   }
 
   values = [yamlencode({
@@ -40,9 +45,9 @@ resource "helm_release" "efs-csi-driver" {
 
       serviceAccount = {
         create = true
-        name   = "efs-csi-controller-sa"
+        name   = "${local.efs_csi_controller_name}-sa"
         annotations = {
-          "eks.amazonaws.com/role-arn" = aws_iam_role.efs-csi-driver-assume-role.arn
+          "eks.amazonaws.com/role-arn" = aws_iam_role.efs_csi_controller_assume_role.arn
         }
       }
 
@@ -55,14 +60,21 @@ resource "helm_release" "efs-csi-driver" {
 
       affinity = {
         nodeAffinity = {
+          preferredDuringSchedulingIgnoredDuringExecution = [
+            {
+              weight = 100
+              preference = {
+                matchExpressions = [{
+                  key      = "kubernetes.io/arch"
+                  operator = "In"
+                  values   = ["arm64"]
+                }]
+              }
+            }
+          ],
           requiredDuringSchedulingIgnoredDuringExecution = {
             nodeSelectorTerms = [{
               matchExpressions = [
-                {
-                  key      = "eks.amazonaws.com/nodegroup"
-                  operator = "In"
-                  values   = [local.eks_cluster_system_node_group_name]
-                },
                 {
                   key      = "kubernetes.io/os"
                   operator = "In"
@@ -85,12 +97,12 @@ resource "helm_release" "efs-csi-driver" {
                   matchExpressions = [{
                     key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values   = ["efs-csi-controller"]
+                    values   = [local.efs_csi_controller_name]
                   }]
                 }
                 topologyKey = "kubernetes.io/hostname"
               }
-              weight = 100
+              weight = 50
             },
             {
               podAffinityTerm = {
@@ -98,12 +110,12 @@ resource "helm_release" "efs-csi-driver" {
                   matchExpressions = [{
                     key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values   = ["efs-csi-controller"]
+                    values   = [local.efs_csi_controller_name]
                   }]
                 }
                 topologyKey = "failure-domain.beta.kubernetes.io/zone"
               }
-              weight = 100
+              weight = 25
             }
           ]
         }
@@ -115,24 +127,20 @@ resource "helm_release" "efs-csi-driver" {
     }
   })]
 
-  depends_on = [
-    helm_release.coredns,
-    aws_iam_role_policy_attachment.efs-csi-driver
-  ]
+  depends_on = [aws_iam_role_policy_attachment.efs_csi_controller]
 }
 
 #################################
 # Pod Disruption Budget         #
 #################################
 
-resource "kubernetes_pod_disruption_budget_v1" "efs-csi-driver" {
+resource "kubernetes_pod_disruption_budget_v1" "efs_csi_driver" {
   metadata {
-    name      = "efs-csi-driver"
+    name      = local.efs_csi_driver_name
     namespace = "kube-system"
     labels = {
-      "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = "efs-csi-driver"
-      "app.kubernetes.io/name"       = "efs-csi-controller"
+      "app.kubernetes.io/instance"   = local.efs_csi_driver_name
+      "app.kubernetes.io/name"       = local.efs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -140,9 +148,8 @@ resource "kubernetes_pod_disruption_budget_v1" "efs-csi-driver" {
     max_unavailable = "1"
     selector {
       match_labels = {
-        "app"                        = "efs-csi-controller"
-        "app.kubernetes.io/instance" = "efs-csi-driver"
-        "app.kubernetes.io/name"     = "efs-csi-controller"
+        "app.kubernetes.io/instance" = local.efs_csi_driver_name
+        "app.kubernetes.io/name"     = local.efs_csi_controller_name
       }
     }
   }
@@ -152,7 +159,7 @@ resource "kubernetes_pod_disruption_budget_v1" "efs-csi-driver" {
 # ISRA                          #
 #################################
 
-data "aws_iam_policy_document" "efs-csi-driver-assume-role-policy" {
+data "aws_iam_policy_document" "efs_csi_controller_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
@@ -160,7 +167,7 @@ data "aws_iam_policy_document" "efs-csi-driver-assume-role-policy" {
     condition {
       test     = "StringEquals"
       variable = "${local.iam_openid_connect_provider_url_stripped}:sub"
-      values   = ["system:serviceaccount:kube-system:efs-csi-controller-sa"]
+      values   = ["system:serviceaccount:kube-system:${local.efs_csi_controller_name}-sa"]
     }
 
     principals {
@@ -170,23 +177,23 @@ data "aws_iam_policy_document" "efs-csi-driver-assume-role-policy" {
   }
 }
 
-resource "aws_iam_role" "efs-csi-driver-assume-role" {
-  assume_role_policy = data.aws_iam_policy_document.efs-csi-driver-assume-role-policy.json
-  name               = "${var.environment}-${var.module}-efs-csi-driver-assume-role"
+resource "aws_iam_role" "efs_csi_controller_assume_role" {
+  assume_role_policy = data.aws_iam_policy_document.efs_csi_controller_assume_role_policy.json
+  name               = "${var.environment}-${local.efs_csi_controller_name}-assume-role"
 }
 
-resource "aws_iam_role_policy_attachment" "efs-csi-driver" {
-  policy_arn = aws_iam_policy.efs-csi-driver.arn
-  role       = aws_iam_role.efs-csi-driver-assume-role.name
+resource "aws_iam_role_policy_attachment" "efs_csi_controller" {
+  policy_arn = aws_iam_policy.efs_csi_controller.arn
+  role       = aws_iam_role.efs_csi_controller_assume_role.name
 }
 
-resource "aws_iam_policy" "efs-csi-driver" {
-  name        = "${var.environment}-${var.module}-efs-csi-driver"
-  description = "EFS CSI Driver Plugin Policy for Cluster ${var.environment}-${var.module}"
-  policy      = data.aws_iam_policy_document.efs-csi-driver.json
+resource "aws_iam_policy" "efs_csi_controller" {
+  name        = "${var.environment}-${local.efs_csi_controller_name}"
+  description = "EFS CSI Driver Plugin Policy for EKS Cluster ${var.environment}"
+  policy      = data.aws_iam_policy_document.efs_csi_controller.json
 }
 
-data "aws_iam_policy_document" "efs-csi-driver" {
+data "aws_iam_policy_document" "efs_csi_controller" {
   statement {
     effect = "Allow"
     actions = [
@@ -223,8 +230,8 @@ data "aws_iam_policy_document" "efs-csi-driver" {
 # EFS                           #
 #################################
 
-resource "aws_efs_file_system" "efs-pod-storage" {
-  creation_token = "${var.environment}-${var.module}-efs-pod-storage"
+resource "aws_efs_file_system" "eks_pod_storage" {
+  creation_token = "${var.environment}-eks-pod-storage"
 
   performance_mode = "generalPurpose"
 
@@ -237,24 +244,23 @@ resource "aws_efs_file_system" "efs-pod-storage" {
   }
 
   tags = {
-    Name        = "${var.environment}-${var.module}-efs-pod-storage"
+    Name        = "${var.environment}-eks-pod-storage"
     Environment = var.environment
-    Module      = var.module
     Terraform   = "true"
   }
 }
 
-resource "aws_efs_mount_target" "efs-pod-storage" {
+resource "aws_efs_mount_target" "eks_pod_storage" {
   count = length(data.aws_subnet_ids.private.ids)
 
-  file_system_id  = aws_efs_file_system.efs-pod-storage.id
+  file_system_id  = aws_efs_file_system.eks_pod_storage.id
   subnet_id       = element(tolist(data.aws_subnet_ids.private.ids), count.index)
   security_groups = [aws_security_group.efs.id]
 }
 
 resource "aws_security_group" "efs" {
-  name        = "${var.environment}-${var.module}-efs"
-  description = "Security group for all nodes in the cluster"
+  name        = "${var.environment}-efs"
+  description = "Security group for all nodes in the cluster for EFS access"
   vpc_id      = data.aws_vpc.main.id
   ingress {
     from_port        = 2049
@@ -264,9 +270,8 @@ resource "aws_security_group" "efs" {
     ipv6_cidr_blocks = [data.aws_vpc.main.ipv6_cidr_block]
   }
   tags = {
-    Name        = "${var.environment}-${var.module}-efs"
+    Name        = "${var.environment}-efs"
     Environment = var.environment
-    Module      = var.module
     Terraform   = "true"
   }
 }
@@ -280,8 +285,8 @@ resource "kubernetes_storage_class_v1" "efs" {
     name = "efs"
     labels = {
       "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = "efs-csi-driver"
-      "app.kubernetes.io/name"       = "efs-csi-controller"
+      "app.kubernetes.io/instance"   = local.efs_csi_driver_name
+      "app.kubernetes.io/name"       = local.efs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -291,12 +296,12 @@ resource "kubernetes_storage_class_v1" "efs" {
   volume_binding_mode = "Immediate"
   parameters = {
     provisioningMode = "efs-ap"
-    fileSystemId     = aws_efs_file_system.efs-pod-storage.id
+    fileSystemId     = aws_efs_file_system.eks_pod_storage.id
     directoryPerms : "700"
   }
 
   depends_on = [
-    helm_release.efs-csi-driver,
-    aws_efs_mount_target.efs-pod-storage
+    helm_release.efs_csi_driver,
+    aws_efs_mount_target.eks_pod_storage
   ]
 }

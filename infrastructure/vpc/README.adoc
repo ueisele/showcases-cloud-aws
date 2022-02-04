@@ -1,22 +1,22 @@
 = VPC
 
-Ensure you have the required link:required-iam-policy.json[IAM permissions].
-
 == Apply Terraform
 
+Ensure you have the required link:required-iam-policy.json[IAM permissions].
+
 [source,bash]
 ----
-terraform init -backend-config="profile=tu-dev-ueisele"
+terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
 [source,bash]
 ----
-terraform apply --var "profile=tu-dev-ueisele"
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
 == Save Outputs to Variables
 
 [source,bash]
 ----
-export PUBLIC_HOSTED_ZONE_CERT_ARN="$(terraform output --raw public-certificate-arn)"
+export PUBLIC_HOSTED_ZONE_CERT_ARN="$(terraform output --raw public_certificate_arn)"
 ----

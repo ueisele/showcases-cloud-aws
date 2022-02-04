@@ -5,22 +5,26 @@
 # https://github.com/kubernetes/autoscaler/tree/master/charts/cluster-autoscaler
 # https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/README.md
 
-resource "helm_release" "cluster-autoscaler" {
-  name       = "cluster-autoscaler"
+locals {
+  cluster_autoscaler_name = "cluster-autoscaler"
+}
+
+resource "helm_release" "cluster_autoscaler" {
+  name       = local.cluster_autoscaler_name
   repository = "https://kubernetes.github.io/autoscaler"
   chart      = "cluster-autoscaler"
-  version    = "9.11.0"
+  version    = "9.13.0"
 
   namespace = "kube-system"
 
   set {
     name  = "fullnameOverride"
-    value = "cluster-autoscaler"
+    value = local.cluster_autoscaler_name
   }
 
   set {
     name  = "nameOverride"
-    value = "cluster-autoscaler"
+    value = local.cluster_autoscaler_name
   }
 
   set {
@@ -35,7 +39,7 @@ resource "helm_release" "cluster-autoscaler" {
 
   set {
     name  = "priorityClassName"
-    value = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
+    value = kubernetes_priority_class_v1.service_system_medium_priority.metadata.0.name
   }
 
   set {
@@ -58,19 +62,19 @@ resource "helm_release" "cluster-autoscaler" {
       create = true
       serviceAccount = {
         create = true
-        name   = "cluster-autoscaler-sa"
+        name   = "${local.cluster_autoscaler_name}-sa"
         annotations = {
-          "eks.amazonaws.com/role-arn" = aws_iam_role.cluster-autoscaler-assume-role.arn
+          "eks.amazonaws.com/role-arn" = aws_iam_role.cluster_autoscaler_assume_role.arn
         }
       }
     }
 
     # https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#what-are-the-parameters-to-ca
     extraArgs = {
-      logtostderr = true
-      stderrthreshold = "info"
-      v = 4
-      skip-nodes-with-system-pods = false
+      logtostderr                   = true
+      stderrthreshold               = "info"
+      v                             = 4
+      skip-nodes-with-system-pods   = false
       skip-nodes-with-local-storage = false
       # scan-interval = "10s"
       # max-node-provision-time = "15m0s"
@@ -102,23 +106,23 @@ resource "helm_release" "cluster-autoscaler" {
       }
     }
 
-    tolerations = [{
-      key      = "system"
-      operator = "Equal"
-      value    = "true"
-      effect   = "NoSchedule"
-    }]
-
     affinity = {
       nodeAffinity = {
+        preferredDuringSchedulingIgnoredDuringExecution = [
+          {
+            weight = 100
+            preference = {
+              matchExpressions = [{
+                key      = "kubernetes.io/arch"
+                operator = "In"
+                values   = ["arm64"]
+              }]
+            }
+          }
+        ],
         requiredDuringSchedulingIgnoredDuringExecution = {
           nodeSelectorTerms = [{
             matchExpressions = [
-              {
-                key      = "eks.amazonaws.com/nodegroup"
-                operator = "In"
-                values   = [local.eks_cluster_system_node_group_name]
-              },
               {
                 key      = "kubernetes.io/os"
                 operator = "In"
@@ -141,12 +145,12 @@ resource "helm_release" "cluster-autoscaler" {
                 matchExpressions = [{
                   key      = "app.kubernetes.io/name"
                   operator = "In"
-                  values   = ["cluster-autoscaler"]
+                  values   = [local.cluster_autoscaler_name]
                 }]
               }
               topologyKey = "kubernetes.io/hostname"
             }
-            weight = 100
+            weight = 50
           },
           {
             podAffinityTerm = {
@@ -154,29 +158,26 @@ resource "helm_release" "cluster-autoscaler" {
                 matchExpressions = [{
                   key      = "app.kubernetes.io/name"
                   operator = "In"
-                  values   = ["cluster-autoscaler"]
+                  values   = [local.cluster_autoscaler_name]
                 }]
               }
               topologyKey = "failure-domain.beta.kubernetes.io/zone"
             }
-            weight = 100
+            weight = 25
           }
         ]
       }
     }
   })]
 
-  depends_on = [
-    helm_release.coredns,
-    aws_iam_role_policy_attachment.cluster-autoscaler
-  ]
+  depends_on = [aws_iam_role_policy_attachment.cluster_autoscaler]
 }
 
 #################################
 # IRSA                          #
 #################################
 
-data "aws_iam_policy_document" "cluster-autoscaler-assume-role-policy" {
+data "aws_iam_policy_document" "cluster_autoscaler_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
@@ -184,7 +185,7 @@ data "aws_iam_policy_document" "cluster-autoscaler-assume-role-policy" {
     condition {
       test     = "StringEquals"
       variable = "${local.iam_openid_connect_provider_url_stripped}:sub"
-      values   = ["system:serviceaccount:kube-system:cluster-autoscaler-sa"]
+      values   = ["system:serviceaccount:kube-system:${local.cluster_autoscaler_name}-sa"]
     }
 
     principals {
@@ -194,23 +195,23 @@ data "aws_iam_policy_document" "cluster-autoscaler-assume-role-policy" {
   }
 }
 
-resource "aws_iam_role" "cluster-autoscaler-assume-role" {
-  assume_role_policy = data.aws_iam_policy_document.cluster-autoscaler-assume-role-policy.json
-  name               = "${var.environment}-${var.module}-cluster-autoscaler-assume-role"
+resource "aws_iam_role" "cluster_autoscaler_assume_role" {
+  assume_role_policy = data.aws_iam_policy_document.cluster_autoscaler_assume_role_policy.json
+  name               = "${var.environment}-${local.cluster_autoscaler_name}-assume-role"
 }
 
-resource "aws_iam_role_policy_attachment" "cluster-autoscaler" {
-  policy_arn = aws_iam_policy.cluster-autoscaler.arn
-  role       = aws_iam_role.cluster-autoscaler-assume-role.name
+resource "aws_iam_role_policy_attachment" "cluster_autoscaler" {
+  policy_arn = aws_iam_policy.cluster_autoscaler.arn
+  role       = aws_iam_role.cluster_autoscaler_assume_role.name
 }
 
-resource "aws_iam_policy" "cluster-autoscaler" {
-  name        = "${var.environment}-${var.module}-cluster-autoscaler"
-  description = "EKS Cluster Autoscaler for Cluster ${var.environment}-${var.module}"
-  policy      = data.aws_iam_policy_document.cluster-autoscaler.json
+resource "aws_iam_policy" "cluster_autoscaler" {
+  name        = "${var.environment}-${local.cluster_autoscaler_name}"
+  description = "Cluster Autoscaler for EKS Cluster ${var.environment}"
+  policy      = data.aws_iam_policy_document.cluster_autoscaler.json
 }
 
-data "aws_iam_policy_document" "cluster-autoscaler" {
+data "aws_iam_policy_document" "cluster_autoscaler" {
   statement {
     effect = "Allow"
     actions = [

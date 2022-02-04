@@ -3,8 +3,13 @@
 #################################
 # https://kubernetes-sigs.github.io/aws-load-balancer-controller
 
-resource "helm_release" "aws-load-balancer-controller" {
-  name       = "aws-load-balancer-controller"
+locals {
+  aws_load_balancer_controller_name              = "aws-load-balancer-controller"
+  aws_load_balancer_controller_ingressclass_name = "alb"
+}
+
+resource "helm_release" "aws_load_balancer_controller" {
+  name       = local.aws_load_balancer_controller_name
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
   version    = "1.3.3"
@@ -13,12 +18,12 @@ resource "helm_release" "aws-load-balancer-controller" {
 
   set {
     name  = "fullnameOverride"
-    value = "aws-load-balancer-controller"
+    value = local.aws_load_balancer_controller_name
   }
 
   set {
     name  = "nameOverride"
-    value = "aws-load-balancer-controller"
+    value = local.aws_load_balancer_controller_name
   }
 
   set {
@@ -38,7 +43,7 @@ resource "helm_release" "aws-load-balancer-controller" {
 
   set {
     name  = "ingressClass"
-    value = "alb"
+    value = local.aws_load_balancer_controller_ingressclass_name
   }
 
   set {
@@ -48,7 +53,7 @@ resource "helm_release" "aws-load-balancer-controller" {
 
   set {
     name  = "priorityClassName"
-    value = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
+    value = kubernetes_priority_class_v1.service_system_medium_priority.metadata.0.name
   }
 
   values = [yamlencode({
@@ -56,9 +61,9 @@ resource "helm_release" "aws-load-balancer-controller" {
 
     serviceAccount = {
       create = true
-      name   = "aws-load-balancer-controller-sa"
+      name   = "${local.aws_load_balancer_controller_name}-sa"
       annotations = {
-        "eks.amazonaws.com/role-arn" = aws_iam_role.aws-lb-controller-assume-role.arn
+        "eks.amazonaws.com/role-arn" = aws_iam_role.aws_load_balancer_controller_assume_role.arn
       }
     }
 
@@ -77,23 +82,23 @@ resource "helm_release" "aws-load-balancer-controller" {
       }
     }
 
-    tolerations = [{
-      key      = "system"
-      operator = "Equal"
-      value    = "true"
-      effect   = "NoSchedule"
-    }]
-
     affinity = {
       nodeAffinity = {
+        preferredDuringSchedulingIgnoredDuringExecution = [
+          {
+            weight = 100
+            preference = {
+              matchExpressions = [{
+                key      = "kubernetes.io/arch"
+                operator = "In"
+                values   = ["arm64"]
+              }]
+            }
+          }
+        ],
         requiredDuringSchedulingIgnoredDuringExecution = {
           nodeSelectorTerms = [{
             matchExpressions = [
-              {
-                key      = "eks.amazonaws.com/nodegroup"
-                operator = "In"
-                values   = [local.eks_cluster_system_node_group_name]
-              },
               {
                 key      = "kubernetes.io/os"
                 operator = "In"
@@ -116,12 +121,12 @@ resource "helm_release" "aws-load-balancer-controller" {
                 matchExpressions = [{
                   key      = "app.kubernetes.io/name"
                   operator = "In"
-                  values   = ["aws-load-balancer-controller"]
+                  values   = [local.aws_load_balancer_controller_name]
                 }]
               }
               topologyKey = "kubernetes.io/hostname"
             }
-            weight = 100
+            weight = 50
           },
           {
             podAffinityTerm = {
@@ -129,12 +134,12 @@ resource "helm_release" "aws-load-balancer-controller" {
                 matchExpressions = [{
                   key      = "app.kubernetes.io/name"
                   operator = "In"
-                  values   = ["aws-load-balancer-controller"]
+                  values   = [local.aws_load_balancer_controller_name]
                 }]
               }
               topologyKey = "failure-domain.beta.kubernetes.io/zone"
             }
-            weight = 100
+            weight = 25
           }
         ]
       }
@@ -142,10 +147,9 @@ resource "helm_release" "aws-load-balancer-controller" {
   })]
 
   depends_on = [
-    helm_release.coredns,
-    aws_iam_role_policy_attachment.aws-lb-controller,
-    aws_ec2_tag.public-subnets-eks-elb,
-    aws_ec2_tag.private-subnets-eks-elb
+    aws_iam_role_policy_attachment.aws_load_balancer_controller,
+    aws_ec2_tag.public_subnets_eks_elb,
+    aws_ec2_tag.private_subnets_eks_elb
   ]
 }
 
@@ -153,13 +157,13 @@ resource "helm_release" "aws-load-balancer-controller" {
 # Pod Disruption Budget         #
 #################################
 
-resource "kubernetes_pod_disruption_budget_v1" "aws-load-balancer-controller" {
+resource "kubernetes_pod_disruption_budget_v1" "aws_load_balancer_controller" {
   metadata {
-    name      = "aws-load-balancer-controller"
+    name      = local.aws_load_balancer_controller_name
     namespace = "kube-system"
     labels = {
-      "app.kubernetes.io/instance"   = "aws-load-balancer-controller"
-      "app.kubernetes.io/name"       = "aws-load-balancer-controller"
+      "app.kubernetes.io/instance"   = local.aws_load_balancer_controller_name
+      "app.kubernetes.io/name"       = local.aws_load_balancer_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -167,8 +171,8 @@ resource "kubernetes_pod_disruption_budget_v1" "aws-load-balancer-controller" {
     max_unavailable = "1"
     selector {
       match_labels = {
-        "app.kubernetes.io/instance" = "aws-load-balancer-controller"
-        "app.kubernetes.io/name"     = "aws-load-balancer-controller"
+        "app.kubernetes.io/instance" = local.aws_load_balancer_controller_name
+        "app.kubernetes.io/name"     = local.aws_load_balancer_controller_name
       }
     }
   }
@@ -178,7 +182,7 @@ resource "kubernetes_pod_disruption_budget_v1" "aws-load-balancer-controller" {
 # ISRA                          #
 #################################
 
-data "aws_iam_policy_document" "aws-lb-controller-assume-role-policy" {
+data "aws_iam_policy_document" "aws_load_balancer_controller_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
@@ -186,7 +190,7 @@ data "aws_iam_policy_document" "aws-lb-controller-assume-role-policy" {
     condition {
       test     = "StringEquals"
       variable = "${local.iam_openid_connect_provider_url_stripped}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller-sa"]
+      values   = ["system:serviceaccount:kube-system:${local.aws_load_balancer_controller_name}-sa"]
     }
 
     principals {
@@ -196,23 +200,23 @@ data "aws_iam_policy_document" "aws-lb-controller-assume-role-policy" {
   }
 }
 
-resource "aws_iam_role" "aws-lb-controller-assume-role" {
-  assume_role_policy = data.aws_iam_policy_document.aws-lb-controller-assume-role-policy.json
-  name               = "${var.environment}-${var.module}-aws-lb-controller-assume-role"
+resource "aws_iam_role" "aws_load_balancer_controller_assume_role" {
+  assume_role_policy = data.aws_iam_policy_document.aws_load_balancer_controller_assume_role_policy.json
+  name               = "${var.environment}-${local.aws_load_balancer_controller_name}-assume-role"
 }
 
-resource "aws_iam_role_policy_attachment" "aws-lb-controller" {
-  policy_arn = aws_iam_policy.aws-lb-controller.arn
-  role       = aws_iam_role.aws-lb-controller-assume-role.name
+resource "aws_iam_role_policy_attachment" "aws_load_balancer_controller" {
+  policy_arn = aws_iam_policy.aws_load_balancer_controller.arn
+  role       = aws_iam_role.aws_load_balancer_controller_assume_role.name
 }
 
-resource "aws_iam_policy" "aws-lb-controller" {
-  name        = "${var.environment}-${var.module}-aws-lb-controller"
-  description = "EKS AWS Load Balancer Controller for Cluster ${var.environment}-${var.module}"
-  policy      = data.aws_iam_policy_document.aws-lb-controller.json
+resource "aws_iam_policy" "aws_load_balancer_controller" {
+  name        = "${var.environment}-${local.aws_load_balancer_controller_name}"
+  description = "AWS Load Balancer Controller for EKS Cluster ${var.environment}"
+  policy      = data.aws_iam_policy_document.aws_load_balancer_controller.json
 }
 
-data "aws_iam_policy_document" "aws-lb-controller" {
+data "aws_iam_policy_document" "aws_load_balancer_controller" {
   statement {
     effect    = "Allow"
     actions   = ["iam:CreateServiceLinkedRole"]
@@ -452,7 +456,7 @@ data "aws_iam_policy_document" "aws-lb-controller" {
 #################################
 # https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/deploy/subnet_discovery/
 
-resource "aws_ec2_tag" "public-subnets-eks-elb" {
+resource "aws_ec2_tag" "public_subnets_eks_elb" {
   count = length(data.aws_subnet_ids.public.ids)
 
   resource_id = element(tolist(data.aws_subnet_ids.public.ids), count.index)
@@ -460,7 +464,7 @@ resource "aws_ec2_tag" "public-subnets-eks-elb" {
   value       = "1"
 }
 
-resource "aws_ec2_tag" "private-subnets-eks-elb" {
+resource "aws_ec2_tag" "private_subnets_eks_elb" {
   count = length(data.aws_subnet_ids.private.ids)
 
   resource_id = element(tolist(data.aws_subnet_ids.private.ids), count.index)
@@ -473,15 +477,15 @@ resource "aws_ec2_tag" "private-subnets-eks-elb" {
 #################################
 # https://kubernetes-sigs.github.io/aws-load-balancer-controller/v2.3/guide/ingress/ingress_class/
 
-resource "kubectl_manifest" "ingressclassparams-alb" {
+resource "kubectl_manifest" "ingressclassparams_alb" {
   yaml_body = <<-EOF
     apiVersion: elbv2.k8s.aws/v1beta1
     kind: IngressClassParams
     metadata:
-      name: alb
+      name: ${local.aws_load_balancer_controller_ingressclass_name}
       labels:
-        app.kubernetes.io/instance: aws-load-balancer-controller
-        app.kubernetes.io/name: aws-load-balancer-controller
+        app.kubernetes.io/instance: ${local.aws_load_balancer_controller_name}
+        app.kubernetes.io/name: ${local.aws_load_balancer_controller_name}
         app.kubernetes.io/managed-by: Terraform
     spec:
       group:
@@ -491,15 +495,15 @@ resource "kubectl_manifest" "ingressclassparams-alb" {
     EOF
 
   // Requires IngressClassParams CRD 
-  depends_on = [helm_release.aws-load-balancer-controller]
+  depends_on = [helm_release.aws_load_balancer_controller]
 }
 
 resource "kubernetes_ingress_class_v1" "alb" {
   metadata {
-    name = "alb"
+    name = local.aws_load_balancer_controller_ingressclass_name
     labels = {
-      "app.kubernetes.io/instance" = "aws-load-balancer-controller"
-      "app.kubernetes.io/name" = "aws-load-balancer-controller"
+      "app.kubernetes.io/instance"   = local.aws_load_balancer_controller_name
+      "app.kubernetes.io/name"       = local.aws_load_balancer_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
     annotations = {
@@ -511,9 +515,9 @@ resource "kubernetes_ingress_class_v1" "alb" {
     parameters {
       api_group = "elbv2.k8s.aws"
       kind      = "IngressClassParams"
-      name      = kubectl_manifest.ingressclassparams-alb.name
+      name      = kubectl_manifest.ingressclassparams_alb.name
     }
   }
 
-  depends_on = [kubectl_manifest.ingressclassparams-alb]
+  depends_on = [kubectl_manifest.ingressclassparams_alb]
 }

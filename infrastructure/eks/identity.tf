@@ -4,7 +4,7 @@
 # https://www.eksworkshop.com/beginner/091_iam-groups/
 
 resource "aws_iam_role" "k8sadmin" {
-  name = "${var.environment}-${var.module}-k8sadmin"
+  name = "${var.environment}-k8sadmin"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -18,15 +18,14 @@ resource "aws_iam_role" "k8sadmin" {
   })
 
   tags = {
-    Name        = "${var.environment}-${var.module}-k8sadmin"
+    Name        = "${var.environment}-k8sadmin"
     Environment = var.environment
-    Module      = var.module
     Terraform   = "true"
   }
 }
 
-resource "aws_iam_policy" "eks-describe-cluster" {
-  name = "${var.environment}-${var.module}-eks-describe-cluster"
+resource "aws_iam_policy" "eks_describe_cluster" {
+  name = "${var.environment}-eks-describe-cluster"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -41,13 +40,13 @@ resource "aws_iam_policy" "eks-describe-cluster" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "k8sadmin-eks-describe-cluster" {
-  policy_arn = aws_iam_policy.eks-describe-cluster.arn
+resource "aws_iam_role_policy_attachment" "k8sadmin_eks_describe_cluster" {
+  policy_arn = aws_iam_policy.eks_describe_cluster.arn
   role       = aws_iam_role.k8sadmin.name
 }
 
-resource "aws_iam_policy" "k8sadmin-assumerole" {
-  name = "${var.environment}-${var.module}-k8sadmin-assumerole"
+resource "aws_iam_policy" "k8sadmin_assume_role" {
+  name = "${var.environment}-k8sadmin-assume-role"
   policy = jsonencode({
     "Version" : "2012-10-17",
     "Statement" : [
@@ -62,22 +61,22 @@ resource "aws_iam_policy" "k8sadmin-assumerole" {
 }
 
 resource "aws_iam_group" "k8sadmin" {
-  name = "${var.environment}-${var.module}-k8sadmin"
+  name = "${var.environment}-k8sadmin"
 }
 
-resource "aws_iam_group_policy_attachment" "k8sadmin-assumerole" {
+resource "aws_iam_group_policy_attachment" "k8sadmin_assume_role" {
   group      = aws_iam_group.k8sadmin.name
-  policy_arn = aws_iam_policy.k8sadmin-assumerole.arn
+  policy_arn = aws_iam_policy.k8sadmin_assume_role.arn
 }
 
-output "ks8admin-role-arn" {
+output "ks8admin_role_arn" {
   value = aws_iam_role.k8sadmin.arn
 }
 
-output "ks8admin-assumerole-policy-arn" {
-  value = aws_iam_policy.k8sadmin-assumerole.arn
+output "ks8admin_assumerole_policy_arn" {
+  value = aws_iam_policy.k8sadmin_assume_role.arn
 }
 
-output "ks8admin-group-arn" {
+output "ks8admin_group_arn" {
   value = aws_iam_group.k8sadmin.arn
 }

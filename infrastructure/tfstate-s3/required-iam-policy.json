@@ -5,12 +5,20 @@
       "Effect": "Allow",
       "Action": [
         "dynamodb:CreateTable",
+        "dynamodb:DeleteTable",
         "dynamodb:DescribeContinuousBackups",
         "dynamodb:DescribeTable",
         "dynamodb:DescribeTimeToLive",
         "dynamodb:ListTagsOfResource",
         "ec2:DescribeAccountAttributes",
+        "kms:CreateKey",
+        "kms:DescribeKey",
+        "kms:GetKeyPolicy",
+        "kms:GetKeyRotationStatus",
+        "kms:ListResourceTags",
+        "kms:ScheduleKeyDeletion",
         "s3:CreateBucket",
+        "s3:DeleteBucket",
         "s3:GetAccelerateConfiguration",
         "s3:GetBucketAcl",
         "s3:GetBucketCORS",
@@ -28,6 +36,7 @@
         "s3:PutBucketPublicAccessBlock",
         "s3:PutBucketTagging",
         "s3:PutBucketVersioning",
+        "s3:PutEncryptionConfiguration",
         "sts:GetCallerIdentity"
       ],
       "Resource": "*"

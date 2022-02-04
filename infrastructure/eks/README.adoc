@@ -1,36 +1,36 @@
 = EKS
 
-Ensure you have the required link:required-iam-policy.json[IAM permissions].
-
 == Apply Terraform
 
+Ensure you have the required link:required-iam-policy.json[IAM permissions].
+
 [source,bash]
 ----
-terraform init -backend-config="profile=tu-dev-ueisele"
+terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
 [source,bash]
 ----
-terraform apply --var "profile=tu-dev-ueisele"
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
 == Save Outputs to Variables
 
 [source,bash]
 ----
-export ACCOUNT_ID="$(terraform output --raw account-id)"
-export EKS_NODE_GROUP_ROLE_ARN="$(terraform output --raw eks-node-group-role-arn)"
-export EKS_FARGATE_PROFILE_ROLE_ARN="$(terraform output --raw eks-fargate-profile-role-arn)"
-export K8SADMIN_ROLE_ARN="$(terraform output --raw ks8admin-role-arn)"
-export K8SADMIN_ASSUMEROLE_POLICY_ARN="$(terraform output --raw ks8admin-assumerole-policy-arn)"
-export K8SADMIN_GROUP_ARN="$(terraform output --raw ks8admin-group-arn)"
+export ACCOUNT_ID="$(terraform output --raw account_id)"
+export EKS_NODE_GROUP_ROLE_ARN="$(terraform output --raw eks_node_group_role_arn)"
+export EKS_FARGATE_PROFILE_ROLE_ARN="$(terraform output --raw eks_fargate_profile_role_arn)"
+export K8SADMIN_ROLE_ARN="$(terraform output --raw ks8admin_role_arn)"
+export K8SADMIN_ASSUMEROLE_POLICY_ARN="$(terraform output --raw ks8admin_assumerole_policy_arn)"
+export K8SADMIN_GROUP_ARN="$(terraform output --raw ks8admin_group_arn)"
 ----
 
 == Update Kubeconfig
 
 [source,bash]
 ----
-aws eks --region eu-central-1 --profile tu-dev-ueisele update-kubeconfig --name showcase-eks
+aws eks --region eu-central-1 --profile ${SHOWCASE_AWS_PROFILE} update-kubeconfig --name showcase
 ----
 
 In order to run this command, `eks:DescribeCluster` permission is required.

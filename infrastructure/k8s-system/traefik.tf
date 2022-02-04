@@ -4,32 +4,32 @@
 # https://doc.traefik.io/traefik/
 # https://github.com/traefik/traefik-helm-chart
 
+locals {
+  traefik_name              = "traefik"
+  traefik_ingressclass_name = local.traefik_name
+}
+
 resource "helm_release" "traefik" {
-  name       = "traefik"
+  name       = local.traefik_name
   repository = "https://helm.traefik.io/traefik"
   chart      = "traefik"
-  version    = "10.9.1"
+  version    = "10.14.0"
 
   namespace = "kube-system"
 
   set {
     name  = "fullnameOverride"
-    value = "traefik"
+    value = local.traefik_name
   }
 
   set {
     name  = "nameOverride"
-    value = "traefik"
-  }
-
-  set {
-    name  = "image.tag"
-    value = "2.6.0"
+    value = local.traefik_name
   }
 
   set {
     name  = "priorityClassName"
-    value = kubernetes_priority_class_v1.high-priority-system-service.metadata.0.name
+    value = kubernetes_priority_class_v1.service_system_high_priority.metadata.0.name
   }
 
   values = [yamlencode({
@@ -131,23 +131,23 @@ resource "helm_release" "traefik" {
       }
     }
 
-    tolerations = [{
-      key      = "system"
-      operator = "Equal"
-      value    = "true"
-      effect   = "NoSchedule"
-    }]
-
     affinity = {
       nodeAffinity = {
+        preferredDuringSchedulingIgnoredDuringExecution = [
+          {
+            weight = 100
+            preference = {
+              matchExpressions = [{
+                key      = "kubernetes.io/arch"
+                operator = "In"
+                values   = ["arm64"]
+              }]
+            }
+          }
+        ],
         requiredDuringSchedulingIgnoredDuringExecution = {
           nodeSelectorTerms = [{
             matchExpressions = [
-              {
-                key      = "eks.amazonaws.com/nodegroup"
-                operator = "In"
-                values   = [local.eks_cluster_system_node_group_name]
-              },
               {
                 key      = "kubernetes.io/os"
                 operator = "In"
@@ -169,7 +169,7 @@ resource "helm_release" "traefik" {
               matchExpressions = [{
                 key      = "app.kubernetes.io/name"
                 operator = "In"
-                values   = ["traefik"]
+                values   = [local.traefik_name]
               }]
             }
             topologyKey = "kubernetes.io/hostname"
@@ -179,7 +179,7 @@ resource "helm_release" "traefik" {
               matchExpressions = [{
                 key      = "app.kubernetes.io/name"
                 operator = "In"
-                values   = ["traefik"]
+                values   = [local.traefik_name]
               }]
             }
             topologyKey = "failure-domain.beta.kubernetes.io/zone"
@@ -196,24 +196,24 @@ resource "helm_release" "traefik" {
 # Middleware                    #
 #################################
 
-resource "random_password" "traefik-basic-auth-default" {
+resource "random_password" "traefik_basic_auth_default" {
   length           = 16
   special          = true
   override_special = "%=?@+#"
 }
 
-output "traefik-basic-auth-default-credentials" {
-  value     = "admin:${random_password.traefik-basic-auth-default.result}"
+output "traefik_basic_auth_default_credentials" {
+  value     = "admin:${random_password.traefik_basic_auth_default.result}"
   sensitive = true
 }
 
-resource "kubernetes_secret_v1" "traefik-basic-auth-default" {
+resource "kubernetes_secret_v1" "traefik_basic_auth_default" {
   metadata {
-    name      = "traefik-basic-auth-default"
+    name      = "${local.traefik_name}-basic-auth-default"
     namespace = "kube-system"
     labels = {
-      "app.kubernetes.io/instance"   = "traefik"
-      "app.kubernetes.io/name"       = "traefik"
+      "app.kubernetes.io/instance"   = local.traefik_name
+      "app.kubernetes.io/name"       = local.traefik_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -222,12 +222,12 @@ resource "kubernetes_secret_v1" "traefik-basic-auth-default" {
   # To create an encoded user:password pair, the following command can be used:
   # htpasswd -nb user password | openssl base64
   data = {
-    users = "admin:${bcrypt(random_password.traefik-basic-auth-default.result)}"
+    users = "admin:${bcrypt(random_password.traefik_basic_auth_default.result)}"
   }
 }
 
 # https://doc.traefik.io/traefik/middlewares/http/basicauth/
-resource "kubectl_manifest" "traefik-middleware-basic-auth-default" {
+resource "kubectl_manifest" "traefik_middleware_basic_auth_default" {
   yaml_body = <<-EOF
     apiVersion: traefik.containo.us/v1alpha1
     kind: Middleware
@@ -235,38 +235,38 @@ resource "kubectl_manifest" "traefik-middleware-basic-auth-default" {
       name: basic-auth-default
       namespace: kube-system
       labels:
-        app.kubernetes.io/instance: traefik
-        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: ${local.traefik_name}
+        app.kubernetes.io/name: ${local.traefik_name}
         app.kubernetes.io/managed-by: Terraform
     spec:
       basicAuth:
-        secret: ${kubernetes_secret_v1.traefik-basic-auth-default.metadata.0.name}
+        secret: ${kubernetes_secret_v1.traefik_basic_auth_default.metadata.0.name}
     EOF
 
-  depends_on = [helm_release.traefik, kubernetes_secret_v1.traefik-basic-auth-default]
+  depends_on = [helm_release.traefik, kubernetes_secret_v1.traefik_basic_auth_default]
 }
 
 #################################
 # Traefik Dashboard             #
 #################################
 
-resource "kubectl_manifest" "ingressroute-traefik-dashboard" {
+resource "kubectl_manifest" "ingressroute_traefik_dashboard" {
   yaml_body = <<-EOF
     apiVersion: traefik.containo.us/v1alpha1
     kind: IngressRoute
     metadata:
-      name: traefik-dashboard
+      name: ${local.traefik_name}-dashboard
       namespace: kube-system      
       labels:
-        app.kubernetes.io/instance: traefik
-        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: ${local.traefik_name}
+        app.kubernetes.io/name: ${local.traefik_name}
         app.kubernetes.io/managed-by: Terraform
     spec:
       entryPoints:
       - traefik
       routes:
       - kind: Rule
-        match: Host(`traefik.${local.env_domain}`) || PathPrefix(`/dashboard`) || PathPrefix(`/api`)
+        match: Host(`${local.traefik_name}.${local.env_domain}`) || PathPrefix(`/dashboard`) || PathPrefix(`/api`)
         services:
         - kind: TraefikService
           name: api@internal
@@ -275,22 +275,22 @@ resource "kubectl_manifest" "ingressroute-traefik-dashboard" {
   depends_on = [helm_release.traefik]
 }
 
-resource "kubernetes_service_v1" "traefik-dashboard" {
+resource "kubernetes_service_v1" "traefik_dashboard" {
   count = var.traefik_dashboard_expose ? 1 : 0
 
   metadata {
-    name      = "traefik-dashboard"
+    name      = "${local.traefik_name}-dashboard"
     namespace = "kube-system"
     labels = {
-      "app.kubernetes.io/instance"   = "traefik"
-      "app.kubernetes.io/name"       = "traefik"
+      "app.kubernetes.io/instance"   = local.traefik_name
+      "app.kubernetes.io/name"       = local.traefik_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
   spec {
     selector = {
-      "app.kubernetes.io/instance" = "traefik"
-      "app.kubernetes.io/name"     = "traefik"
+      "app.kubernetes.io/instance" = local.traefik_name
+      "app.kubernetes.io/name"     = local.traefik_name
     }
     port {
       name        = "http"
@@ -301,34 +301,34 @@ resource "kubernetes_service_v1" "traefik-dashboard" {
   }
 }
 
-resource "kubernetes_ingress_v1" "traefik-dashboard" {
+resource "kubernetes_ingress_v1" "traefik_dashboard" {
   count = var.traefik_dashboard_expose ? 1 : 0
 
   metadata {
-    name      = "traefik-dashboard"
+    name      = "${local.traefik_name}-dashboard"
     namespace = "kube-system"
     labels = {
-      "app.kubernetes.io/instance"   = "traefik"
-      "app.kubernetes.io/name"       = "traefik"
+      "app.kubernetes.io/instance"   = local.traefik_name
+      "app.kubernetes.io/name"       = local.traefik_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
     annotations = {
       "traefik.ingress.kubernetes.io/router.entrypoints" = "websecure"
-      "traefik.ingress.kubernetes.io/router.middlewares" = "${kubectl_manifest.traefik-middleware-basic-auth-default.namespace}-${kubectl_manifest.traefik-middleware-basic-auth-default.name}@kubernetescrd"
+      "traefik.ingress.kubernetes.io/router.middlewares" = "${kubectl_manifest.traefik_middleware_basic_auth_default.namespace}-${kubectl_manifest.traefik_middleware_basic_auth_default.name}@kubernetescrd"
     }
   }
 
   spec {
-    ingress_class_name = "traefik"
+    ingress_class_name = local.traefik_ingressclass_name
     rule {
-      host = "traefik.${local.env_domain}"
+      host = "${local.traefik_name}.${local.env_domain}"
       http {
         path {
           path      = "/"
           path_type = "Prefix"
           backend {
             service {
-              name = kubernetes_service_v1.traefik-dashboard[0].metadata.0.name
+              name = kubernetes_service_v1.traefik_dashboard[0].metadata.0.name
               port {
                 number = 80
               }
@@ -341,6 +341,10 @@ resource "kubernetes_ingress_v1" "traefik-dashboard" {
 
   depends_on = [
     helm_release.traefik,
-    helm_release.external-dns-controller
+    helm_release.external_dns_controller
   ]
+}
+
+output "traefik_dashboard_url" {
+  value = "${local.traefik_name}.${local.env_domain}"
 }

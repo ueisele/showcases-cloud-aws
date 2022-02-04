@@ -2,8 +2,8 @@
 terraform {
   backend "s3" {
     region         = "eu-central-1"
-    bucket         = "tfstate-aws-uweeisele-dev"
     key            = "examples-k8s-storage-efs-fargate"
-    dynamodb_table = "tfstate-aws-uweeisele-dev"
+    bucket         = "showcase-tfstate"
+    dynamodb_table = "showcase-tfstate"
   }
 }

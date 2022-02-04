@@ -7,14 +7,16 @@
 
 == Apply Terraform
 
+Ensure you have the required link:required-iam-policy.json[IAM permissions].
+
 [source,bash]
 ----
-terraform init -backend-config="profile=tu-dev-ueisele"
+terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
 [source,bash]
 ----
-terraform apply --var "profile=tu-dev-ueisele"
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
 == Components
@@ -217,7 +219,7 @@ metadata:
 .Determine credentials
 [source,bash]
 ----
-terraform output --raw traefik-basic-auth-default-credentials
+terraform output --raw traefik_basic_auth_default_credentials
 ----
 
 Services:
@@ -262,27 +264,4 @@ helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server
 helm repo update
 helm show values metrics-server/metrics-server
 helm search repo metrics-server 
-----
-
-=== Kubernetes Dashboard
-
-https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
-
-Kubernetes Dashboard		  200m	 200Mi	2	x
-
-You can check for the latest versions and print the default _values.yaml_ with the following commands:
-
-[source,bash]
-----
-helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard
-helm repo update
-helm show values kubernetes-dashboard/kubernetes-dashboard
-helm search repo kubernetes-dashboard
-----
-
-Login with the following token:
-
-[source,bash]
-----
-terraform output --raw kubernetes_dashboard_readonly_cluster_token
 ----

@@ -9,7 +9,8 @@ Deploy in the following order:
 * link:tfstate-s3[S3 Terraform State Backend Setup]
 * link:vpc[VPC Setup]
 * link:eks[EKS Setup]
-* link:k8s[Kubernetes Setup]
+* link:k8s-system[Kubernetes System Setup]
+* link:k8s-monitoring[Kubernetes Monitoring Setup]
 
 The following are work in progress and not used until now:
 

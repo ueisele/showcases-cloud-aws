@@ -7,22 +7,22 @@
 #  system-cluster-critical   2000000000
 #  system-node-critical      2000001000
 
-resource "kubernetes_priority_class_v1" "high-priority-system-service" {
+resource "kubernetes_priority_class_v1" "service_system_high_priority" {
   metadata {
-    name = "high-priority-system-service"
-    annotations = {
-        terraform = "true"
+    name = "service-system-high-priority"
+    labels = {
+      "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
 
   value = 1000000000
 }
 
-resource "kubernetes_priority_class_v1" "medium-priority-system-service" {
+resource "kubernetes_priority_class_v1" "service_system_medium_priority" {
   metadata {
-    name = "medium-priority-system-service"
-    annotations = {
-        terraform = "true"
+    name = "service-system-medium-priority"
+    labels = {
+      "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
 

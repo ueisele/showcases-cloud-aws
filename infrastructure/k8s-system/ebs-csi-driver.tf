@@ -5,8 +5,13 @@
 # https://docs.aws.amazon.com/eks/latest/userguide/managing-ebs-csi.html
 # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ebs-volume-types.html
 
-resource "helm_release" "ebs-csi-driver" {
-  name       = "ebs-csi-driver"
+locals {
+  ebs_csi_driver_name     = "ebs-csi-driver"
+  ebs_csi_controller_name = "ebs-csi-controller"
+}
+
+resource "helm_release" "ebs_csi_driver" {
+  name       = local.ebs_csi_driver_name
   repository = "https://kubernetes-sigs.github.io/aws-ebs-csi-driver"
   chart      = "aws-ebs-csi-driver"
   version    = "2.6.2"
@@ -15,19 +20,19 @@ resource "helm_release" "ebs-csi-driver" {
 
   set {
     name  = "fullnameOverride"
-    value = "ebs-csi-controller"
+    value = local.ebs_csi_controller_name
   }
 
   set {
     name  = "nameOverride"
-    value = "ebs-csi-controller"
+    value = local.ebs_csi_controller_name
   }
 
   values = [yamlencode({
     controller = {
       replicaCount = 1
 
-      priorityClassName = kubernetes_priority_class_v1.medium-priority-system-service.metadata.0.name
+      priorityClassName = kubernetes_priority_class_v1.service_system_medium_priority.metadata.0.name
 
       resources = {
         limits = {
@@ -42,29 +47,29 @@ resource "helm_release" "ebs-csi-driver" {
 
       serviceAccount = {
         create = true
-        name   = "ebs-csi-controller-sa"
+        name   = "${local.ebs_csi_controller_name}-sa"
         annotations = {
-          "eks.amazonaws.com/role-arn" = aws_iam_role.ebs-csi-assume-role.arn
+          "eks.amazonaws.com/role-arn" = aws_iam_role.ebs_csi_controller_assume_role.arn
         }
       }
 
-      tolerations = [{
-        key      = "system"
-        operator = "Equal"
-        value    = "true"
-        effect   = "NoSchedule"
-      }]
-
       affinity = {
         nodeAffinity = {
+          preferredDuringSchedulingIgnoredDuringExecution = [
+            {
+              weight = 100
+              preference = {
+                matchExpressions = [{
+                  key      = "kubernetes.io/arch"
+                  operator = "In"
+                  values   = ["arm64"]
+                }]
+              }
+            }
+          ],
           requiredDuringSchedulingIgnoredDuringExecution = {
             nodeSelectorTerms = [{
               matchExpressions = [
-                {
-                  key      = "eks.amazonaws.com/nodegroup"
-                  operator = "In"
-                  values   = [local.eks_cluster_system_node_group_name]
-                },
                 {
                   key      = "kubernetes.io/os"
                   operator = "In"
@@ -87,12 +92,12 @@ resource "helm_release" "ebs-csi-driver" {
                   matchExpressions = [{
                     key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values   = ["ebs-csi-controller"]
+                    values   = [local.ebs_csi_controller_name]
                   }]
                 }
                 topologyKey = "kubernetes.io/hostname"
               }
-              weight = 100
+              weight = 50
             },
             {
               podAffinityTerm = {
@@ -100,12 +105,12 @@ resource "helm_release" "ebs-csi-driver" {
                   matchExpressions = [{
                     key      = "app.kubernetes.io/name"
                     operator = "In"
-                    values   = ["ebs-csi-controller"]
+                    values   = [local.ebs_csi_controller_name]
                   }]
                 }
                 topologyKey = "failure-domain.beta.kubernetes.io/zone"
               }
-              weight = 100
+              weight = 25
             }
           ]
         }
@@ -117,17 +122,14 @@ resource "helm_release" "ebs-csi-driver" {
     }
   })]
 
-  depends_on = [
-    helm_release.coredns,
-    aws_iam_role_policy_attachment.ebs-csi-driver-policy-attachment
-  ]
+  depends_on = [aws_iam_role_policy_attachment.ebs_csi_controller]
 }
 
 #################################
 # IRSA                          #
 #################################
 
-data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
+data "aws_iam_policy_document" "ebs_csi_controller_assume_role_policy" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
     effect  = "Allow"
@@ -135,7 +137,7 @@ data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
     condition {
       test     = "StringEquals"
       variable = "${local.iam_openid_connect_provider_url_stripped}:sub"
-      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+      values   = ["system:serviceaccount:kube-system:${local.ebs_csi_controller_name}-sa"]
     }
 
     principals {
@@ -145,23 +147,23 @@ data "aws_iam_policy_document" "ebs-csi-assume-role-policy" {
   }
 }
 
-resource "aws_iam_role" "ebs-csi-assume-role" {
-  assume_role_policy = data.aws_iam_policy_document.ebs-csi-assume-role-policy.json
-  name               = "${var.environment}-${var.module}-ebs-csi-assume-role"
+resource "aws_iam_role" "ebs_csi_controller_assume_role" {
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_controller_assume_role_policy.json
+  name               = "${var.environment}-${local.ebs_csi_controller_name}-assume-role"
 }
 
-resource "aws_iam_role_policy_attachment" "ebs-csi-driver-policy-attachment" {
-  policy_arn = aws_iam_policy.ebs-csi-driver-policy.arn
-  role       = aws_iam_role.ebs-csi-assume-role.name
+resource "aws_iam_role_policy_attachment" "ebs_csi_controller" {
+  policy_arn = aws_iam_policy.ebs_csi_controller.arn
+  role       = aws_iam_role.ebs_csi_controller_assume_role.name
 }
 
-resource "aws_iam_policy" "ebs-csi-driver-policy" {
-  name        = "${var.environment}-${var.module}-ebs-csi-driver-policy"
-  description = "EBS CSI Driver Plugin Policy for Cluster ${var.environment}-${var.module}"
-  policy      = data.aws_iam_policy_document.ebs-csi-driver-policy-document.json
+resource "aws_iam_policy" "ebs_csi_controller" {
+  name        = "${var.environment}-${local.ebs_csi_controller_name}"
+  description = "EBS CSI Driver Plugin Policy for EKS Cluster ${var.environment}"
+  policy      = data.aws_iam_policy_document.ebs_csi_controller.json
 }
 
-data "aws_iam_policy_document" "ebs-csi-driver-policy-document" {
+data "aws_iam_policy_document" "ebs_csi_controller" {
   statement {
     effect = "Allow"
     actions = [
@@ -325,8 +327,8 @@ resource "kubernetes_storage_class_v1" "gp3" {
     name = "gp3"
     labels = {
       "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = "ebs-csi-driver"
-      "app.kubernetes.io/name"       = "ebs-csi-controller"
+      "app.kubernetes.io/instance"   = local.ebs_csi_driver_name
+      "app.kubernetes.io/name"       = local.ebs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
     annotations = {
@@ -344,7 +346,7 @@ resource "kubernetes_storage_class_v1" "gp3" {
     #throughput = "125"
   }
 
-  depends_on = [helm_release.ebs-csi-driver]
+  depends_on = [helm_release.ebs_csi_driver]
 }
 
 resource "kubernetes_storage_class_v1" "st1" {
@@ -352,8 +354,8 @@ resource "kubernetes_storage_class_v1" "st1" {
     name = "st1"
     labels = {
       "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = "ebs-csi-driver"
-      "app.kubernetes.io/name"       = "ebs-csi-controller"
+      "app.kubernetes.io/instance"   = local.ebs_csi_driver_name
+      "app.kubernetes.io/name"       = local.ebs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -366,7 +368,7 @@ resource "kubernetes_storage_class_v1" "st1" {
     "csi.storage.k8s.io/fstype" = "ext4"
   }
 
-  depends_on = [helm_release.ebs-csi-driver]
+  depends_on = [helm_release.ebs_csi_driver]
 }
 
 resource "kubernetes_storage_class_v1" "sc1" {
@@ -374,8 +376,8 @@ resource "kubernetes_storage_class_v1" "sc1" {
     name = "sc1"
     labels = {
       "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = "ebs-csi-driver"
-      "app.kubernetes.io/name"       = "ebs-csi-controller"
+      "app.kubernetes.io/instance"   = local.ebs_csi_driver_name
+      "app.kubernetes.io/name"       = local.ebs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -388,7 +390,7 @@ resource "kubernetes_storage_class_v1" "sc1" {
     "csi.storage.k8s.io/fstype" = "ext4"
   }
 
-  depends_on = [helm_release.ebs-csi-driver]
+  depends_on = [helm_release.ebs_csi_driver]
 }
 
 #################################

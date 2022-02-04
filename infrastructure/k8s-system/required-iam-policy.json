@@ -1,0 +1,46 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+              "acm:DescribeCertificate",
+              "acm:ListCertificates",
+              "acm:ListTagsForCertificate",
+              "dynamodb:DeleteItem",
+              "dynamodb:GetItem",
+              "dynamodb:PutItem",
+              "ec2:AuthorizeSecurityGroupIngress",
+              "ec2:CreateSecurityGroup",
+              "ec2:DescribeAccountAttributes",
+              "ec2:DescribeRouteTables",
+              "ec2:DescribeSecurityGroups",
+              "ec2:DescribeSubnets",
+              "ec2:DescribeTags",
+              "ec2:DescribeVpcAttribute",
+              "ec2:DescribeVpcs",
+              "ec2:RevokeSecurityGroupEgress",
+              "eks:DescribeCluster",
+              "elasticfilesystem:CreateFileSystem",
+              "elasticfilesystem:CreateMountTarget",
+              "elasticfilesystem:DescribeFileSystems",
+              "elasticfilesystem:DescribeLifecycleConfiguration",
+              "elasticfilesystem:DescribeMountTargets",
+              "elasticfilesystem:DescribeMountTargetSecurityGroups",
+              "elasticfilesystem:PutLifecycleConfiguration",
+              "iam:AttachRolePolicy",
+              "iam:CreatePolicy",
+              "iam:CreateRole",
+              "iam:GetPolicy",
+              "iam:GetPolicyVersion",
+              "iam:GetRole",
+              "iam:ListAttachedRolePolicies",
+              "iam:ListRolePolicies",
+              "s3:GetObject",
+              "s3:ListBucket",
+              "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

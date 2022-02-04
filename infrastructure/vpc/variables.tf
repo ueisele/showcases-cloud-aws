@@ -44,6 +44,6 @@ variable "private_subnet_ipv6_prefixes" {
 }
 
 variable "nat_gateway_count" {
-  default        = 1
-  description = "Only one by default to save money"
+  default     = 1
+  description = "Only one by default to reduce resource usage in playground environment."
 }
