@@ -4,6 +4,31 @@ image:showcase-infrastructure.drawio.png[]
 
 link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
 
+== Prerequisites
+
+=== Domains
+
+The infrastructure provisioning requires two existing public hosted zones. In the following section it is described how you can add a domain which is registered at link:https://www.godaddy.com/[GoDaddy]. However, it works similar for any other domain registrar.
+
+Repead the steps in the following two sections for boths domains, e.g. `letuscode.dev` and `letuscode.xyz`.
+
+==== Create Route 53 Hosted Zone
+
+1. Login to the link:https://eu-central-1.console.aws.amazon.com/console[AWS Management Console] and navigate to the link:https://console.aws.amazon.com/route53/v2/hostedzones#[Route 53] service
+2. Create a new `public hosted zone` for the first domain, (e.g. `letuscode.dev`)
+3. Login to the link:https://account.godaddy.com/products[GoDaddy Management Console] and navigate to the DNS configuration of your domaine (e.g. `letuscode.dev`)
+4. In the GoDaddy name server section set the the name servers displayed in the AWS Route53 hosted zone details overview 
+
+===== Create Wildcard Certificate for Domain
+
+1. Login to the link:https://eu-central-1.console.aws.amazon.com/console[AWS Management Console] and navigate to the link:https://eu-central-1.console.aws.amazon.com/acm[Certificate Manager] service
+2. Request a new public certificate for the domain of the previously created hosted zone (e.g. `letuscode.dev`)
+    a. Set the fully qualified domain name to `*.letuscode.dev` in order to create a wildcard certificate
+    b. Set the validation method to `DNS validation`
+3. Now you need to create a new CNAME in the previously created hosted zone with name and value shown in the certificate request. You can do this by clicking on the `Create records in Route 53` button in the certificate request page.
+
+== Provisioning
+
 Deploy in the following order:
 
 * link:tfstate-s3[S3 Terraform State Backend Setup]

@@ -22,9 +22,9 @@ spec:
           name: http
         env:
         - name: REGISTRY_UI_CONFIG_APIURL
-          value: https://apicurioregistry.asyncapi.aws.uweeisele.dev/apis/registry
+          value: https://apicurioregistry.ada.letuscode.dev/apis/registry
         - name: REGISTRY_UI_CONFIG_UIURL
-          value: https://apicurioregistry.asyncapi.aws.uweeisele.dev/ui
+          value: https://apicurioregistry.ada.letuscode.dev/ui
         resources:
           requests:
             cpu: 500m
@@ -55,7 +55,7 @@ metadata:
   name: apicurioregistry
 spec:
   rules:
-  - host: apicurioregistry.asyncapi.aws.uweeisele.dev
+  - host: apicurioregistry.ada.letuscode.dev
     http:
       paths:
       - path: /

@@ -224,7 +224,7 @@ terraform output --raw traefik_basic_auth_default_credentials
 
 Services:
 
-* Traefik Dashboard: https://traefik.showcase.aws.uweeisele.dev/
+* Traefik Dashboard: https://traefik.ada.letuscode.dev/
 
 === Cluster Auto Scaler
 

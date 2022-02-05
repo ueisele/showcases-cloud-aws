@@ -18,7 +18,7 @@ resource "aws_cognito_user_pool_client" "main" {
   user_pool_id = aws_cognito_user_pool.main.id
 
   supported_identity_providers         = ["COGNITO"]
-  callback_urls                        = ["https://*.${data.aws_route53_zone.public.name}/oauth2/idpresponse", "https://nginx-hello.showcase.aws.uweeisele.dev/oauth2/idpresponse"]
+  callback_urls                        = ["https://*.${data.aws_route53_zone.public.name}/oauth2/idpresponse", "https://nginx-hello.ada.letuscode.dev/oauth2/idpresponse"]
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid"]

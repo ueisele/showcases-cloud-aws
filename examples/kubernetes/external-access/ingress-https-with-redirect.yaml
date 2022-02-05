@@ -12,7 +12,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-  - host: nginx-hello-https-redirect.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https-redirect.ada.letuscode.dev
     http:
       paths:
       - path: /*

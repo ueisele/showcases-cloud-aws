@@ -7,9 +7,9 @@ variable "profile" {
 }
 
 variable "environment" {
-  default = "showcase"
+  default = "ada"
 }
 
 variable "route53_public_main_zone" {
-  default = "aws.uweeisele.dev"
+  default = "letuscode.dev"
 }

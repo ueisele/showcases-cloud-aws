@@ -9,7 +9,7 @@ metadata:
   name: nginx-hello-traefik
 spec:
   rules:
-  - host: nginx-hello-traefik.showcase.aws.uweeisele.dev
+  - host: nginx-hello-traefik.ada.letuscode.dev
     http:
       paths:
       - path: /

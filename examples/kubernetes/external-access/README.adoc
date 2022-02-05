@@ -52,7 +52,7 @@ metadata:
   name: nginx-hello-http
 spec:
   rules:
-  - host: nginx-hello.showcase.aws.uweeisele.dev
+  - host: nginx-hello.ada.letuscode.dev
     http:
       paths:
       - path: /*
@@ -64,7 +64,7 @@ spec:
               number: 80 
 ----
 
-The host rule `nginx-hello.showcase.aws.uweeisele.dev` is important, because by default multiple Ingresses share the same AWS ALB. If all requests independent of the path should be forwarded to a specific target, it is also important to specify '/*' as path.
+The host rule `nginx-hello.ada.letuscode.dev` is important, because by default multiple Ingresses share the same AWS ALB. If all requests independent of the path should be forwarded to a specific target, it is also important to specify '/*' as path.
 
 The target of an Ingress is defined as a Kubernetes service. This service must exist and be of type _ClusterIp_ and point to an group of pods. If `target-type` is `ip`, the load balancer will directly forward the requests to the individual ports, without using the service. In this case the service is only required by the AWS Load Balancer Controller to detect the actual Pods.
 
@@ -80,7 +80,7 @@ The example creates an deployment with three pods using `nginxdemos/hello:plain-
 kubectl -n examples-$(whoami) apply -f deployment.yaml
 ----
 
-The Ingress as created for host `nginx-hello.showcase.aws.uweeisele.dev` and path `/*`.
+The Ingress as created for host `nginx-hello.ada.letuscode.dev` and path `/*`.
 
 .Deploy HTTP Ingress for example HTTP web-server 
 [source,bash]
@@ -102,10 +102,10 @@ The attribute `status.loadBalancer.ingress.hostname` shows the created DNS name 
 .You can use this DNS name, to make a HTTP request to your application via the created load balancer
 [source,bash]
 ----
-curl -H "Host: nginx-hello-http.showcase.aws.uweeisele.dev" http://${LB_DNS_NAME}
+curl -H "Host: nginx-hello-http.ada.letuscode.dev" http://${LB_DNS_NAME}
 ----
 
-In order to make a request to `nginx-hello-http.showcase.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
+In order to make a request to `nginx-hello-http.ada.letuscode.dev` you need to create a corresponding _Route53_ entry.
 
 .You can display the created load balancer with the following aws cli query (replace the load balancer DNS name with the actual DNS name)
 [source,bash]
@@ -123,7 +123,7 @@ aws elbv2 describe-listeners --load-balancer-arn ${TOOLS_LB_ARN}
 export LB_LISTENER_80_ARN=$(aws elbv2 describe-listeners --load-balancer-arn ${TOOLS_LB_ARN} | jq -r ".Listeners[] | select(.Port==80) | .ListenerArn")
 ----
 
-A listener can have multiple rules. This configuration created a rule for host `nginx-hello-http.showcase.aws.uweeisele.dev` and path `/*`.
+A listener can have multiple rules. This configuration created a rule for host `nginx-hello-http.ada.letuscode.dev` and path `/*`.
 
 .List the rules of the listener (replace arn with actual arn, printed by the previous command)
 [source,bash]
@@ -157,7 +157,7 @@ metadata:
   name: nginx-hello-https
 spec:
   rules:
-  - host: nginx-hello-https.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https.ada.letuscode.dev
     http:
       paths:
       - path: /*
@@ -191,7 +191,7 @@ The example creates an deployment with three pods using `nginxdemos/hello:plain-
 kubectl -n examples-$(whoami) apply -f deployment.yaml
 ----
 
-The Ingress as created for host `nginx-hello-https.showcase.aws.uweeisele.dev` and path `/*`.
+The Ingress as created for host `nginx-hello-https.ada.letuscode.dev` and path `/*`.
 
 .Deploy HTTPS Ingress for example HTTP web-server 
 [source,bash]
@@ -224,10 +224,10 @@ This is required, because also the SNI is checked, which is always set to the ac
 .You can use this DNS name, to make a HTTPS request to your application via the created load balancer
 [source,bash]
 ----
-curl --resolve nginx-hello-https.showcase.aws.uweeisele.dev:443:${TOOLS_LB_IP} https://nginx-hello-https.showcase.aws.uweeisele.dev
+curl --resolve nginx-hello-https.ada.letuscode.dev:443:${TOOLS_LB_IP} https://nginx-hello-https.ada.letuscode.dev
 ----
 
-In order to make a request to `nginx-hello-https.showcase.aws.uweeisele.dev` you need to create a corresponding _Route53_ entry.
+In order to make a request to `nginx-hello-https.ada.letuscode.dev` you need to create a corresponding _Route53_ entry.
 
 == External DNS
 
@@ -241,7 +241,7 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: nginx-hello-https.showcase.aws.uweeisele.dev
+    external-dns.alpha.kubernetes.io/hostname: nginx-hello-https.ada.letuscode.dev
 ----
 
 For Kubernetes Ingress, also the Host which is specified in the ingress is considered.
@@ -255,5 +255,5 @@ kind: Ingress
 spec:
   ingressClassName: alb
   rules:
-  - host: nginx-hello-https.showcase.aws.uweeisele.dev
+  - host: nginx-hello-https.ada.letuscode.dev
 ----

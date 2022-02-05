@@ -10,7 +10,7 @@ metadata:
 spec:
   ingressClassName: custom-alb
   rules:
-  - host: nginx-hello-ingressclass-https.showcase.aws.uweeisele.dev
+  - host: nginx-hello-ingressclass-https.ada.letuscode.dev
     http:
       paths:
       - path: /*

@@ -7,11 +7,11 @@ variable "profile" {
 }
 
 variable "environment" {
-  default = "showcase"
+  default = "ada"
 }
 
 variable "route53_public_main_zone" {
-  default = "aws.uweeisele.dev"
+  default = "letuscode.dev"
 }
 
 variable "eks_cluster_dns_ip" {
@@ -25,11 +25,6 @@ variable "k8s_admin_users" {
 }
 
 variable "traefik_dashboard_expose" {
-  type    = bool
-  default = true
-}
-
-variable "kubernetes_dashboard_expose" {
   type    = bool
   default = true
 }

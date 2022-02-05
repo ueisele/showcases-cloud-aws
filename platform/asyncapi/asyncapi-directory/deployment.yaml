@@ -89,7 +89,7 @@ metadata:
   name: asyncapidirectory
 spec:
   rules:
-  - host: asyncapidirectory.asyncapi.aws.uweeisele.dev
+  - host: asyncapidirectory.ada.letuscode.dev
     http:
       paths:
       - path: /

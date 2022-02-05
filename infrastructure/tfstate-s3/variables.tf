@@ -7,5 +7,5 @@ variable "profile" {
 }
 
 variable "environment" {
-  default = "showcase"
+  default = "ada"
 }
