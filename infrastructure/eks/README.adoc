@@ -30,7 +30,7 @@ export K8SADMIN_GROUP_ARN="$(terraform output --raw ks8admin_group_arn)"
 
 [source,bash]
 ----
-aws eks --region eu-central-1 --profile ${SHOWCASE_AWS_PROFILE} update-kubeconfig --name showcase
+aws eks --region eu-central-1 --profile ${SHOWCASE_AWS_PROFILE} update-kubeconfig --name ada
 ----
 
 In order to run this command, `eks:DescribeCluster` permission is required.

@@ -6,7 +6,7 @@
 
 locals {
   kubernetes_dashboard_name                 = "kubernetes-dashboard"
-  kubernetes_dashboard_metrics_scraper_name = "${local.kubernetes_dashboard_name}-metrics-scraper"
+  kubernetes_dashboard_metrics_scraper_name = "dashboard-metrics-scraper" // Do not changes! Kubernetes dashboard expects this name!
 }
 
 resource "kubernetes_service_account_v1" "kubernetes_dashboard" {
