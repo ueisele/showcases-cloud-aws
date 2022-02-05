@@ -9,7 +9,7 @@ resource "aws_kms_key" "terraform_state_key" {
   deletion_window_in_days = 7
 
   tags = {
-    Name        = "${var.environment}-tfstate"
+    Name        = "tfstate-${var.environment}"
     Environment = var.environment
     Terraform   = "true"
   }
@@ -20,7 +20,7 @@ resource "aws_kms_key" "terraform_state_key" {
 }
 
 resource "aws_s3_bucket" "terraform_state" {
-  bucket = "${var.environment}-tfstate"
+  bucket = "tfstate-${var.environment}"
   acl    = "private"
 
   versioning {
@@ -37,7 +37,7 @@ resource "aws_s3_bucket" "terraform_state" {
   }
 
   tags = {
-    Name        = "${var.environment}-tfstate"
+    Name        = "tfstate-${var.environment}"
     Environment = var.environment
     Terraform   = "true"
   }
@@ -61,7 +61,7 @@ resource "aws_s3_bucket_public_access_block" "terraform_state_block_public" {
 }
 
 resource "aws_dynamodb_table" "terraform_state_lock" {
-  name           = "${var.environment}-tfstate"
+  name           = "tfstate-${var.environment}"
   read_capacity  = 1
   write_capacity = 1
 
@@ -78,7 +78,7 @@ resource "aws_dynamodb_table" "terraform_state_lock" {
   }
 
   tags = {
-    Name        = "${var.environment}-tfstate"
+    Name        = "tfstate-${var.environment}"
     Environment = var.environment
     Terraform   = "true"
   }
