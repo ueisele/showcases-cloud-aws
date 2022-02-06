@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ldaputils
+spec:
+  restartPolicy: Always
+  containers:
+  - name: ldaputils
+    image: debian:bullseye-slim #mbentley/ldap-utils
+    command: ["sh", "-c", "tail -f /dev/null"]
+    imagePullPolicy: Always
+    env:
+    - name: LDAP_USERNAME
+      value: ${LDAP_USERNAME}
+    - name: LDAP_PASSWORD
+      value: ${LDAP_PASSWORD}
+    resources:
+      limits:
+        cpu: 100m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: "kubernetes.io/arch"
+            operator: "In"
+            values: ["arm64"]
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: "kubernetes.io/os"
+            operator: "In"
+            values: ["linux"]
+          - key: "kubernetes.io/arch"
+            operator: "In"
+            values: ["amd64", "arm64"]

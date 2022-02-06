@@ -1,0 +1,127 @@
+= LDAP
+
+https://aws.amazon.com/de/blogs/networking-and-content-delivery/integrating-your-directory-services-dns-resolution-with-amazon-route-53-resolvers/
+
+== Apply Terraform
+
+IMPORTANT: Requires at least two private subnets in different availability zones! By default LDAP instances are deployed to one subnet in `eu-central-1a` and one subnet in `eu-central-1b`.
+
+[source,bash]
+----
+terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
+----
+
+[source,bash]
+----
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
+----
+
+== LDAP
+
+=== Deploy Verification Pod
+
+.Create namespace for the verification
+[source,bash]
+----
+export NS_EXAMPLES=examples-$(whoami)
+kubectl create ns ${NS_EXAMPLES}
+----
+
+.Determine LDAP username and password
+[source,bash]
+----
+export LDAP_USERNAME=$(terraform output --raw ldap_username)
+export LDAP_PASSWORD=$(terraform output --raw ldap_password)
+----
+
+.Use that manifest to create the Pod
+[source,bash]
+----
+envsubst < verify/ldaputils-pod.yaml | kubectl -n ${NS_EXAMPLES} apply -f -
+----
+
+.…and verify its status
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} get pods ldaputils
+----
+
+.Once that Pod is running, you can exec into the pod
+[source,bash]
+----
+kubectl -n ${NS_EXAMPLES} exec -it ldaputils -- sh
+----
+
+.Finally, after you are done, remove the Pod
+[source,bash]
+----
+envsubst < verify/ldaputils-pod.yaml | kubectl -n ${NS_EXAMPLES} delete -f -
+----
+
+=== DNS Resolution
+
+.Check if the DNS resolution for the LDAP domain ada.letuscode.xyz works
+[source,bash]
+----
+> nslookup ada.letuscode.xyz
+Server:         172.20.0.10
+Address:        172.20.0.10:53
+
+Non-authoritative answer:
+Name:   ada.letuscode.xyz
+Address: 10.0.3.5
+Name:   ada.letuscode.xyz
+Address: 10.0.4.55
+----
+
+.Check if the DNS reverse lookup for the domain servers works
+[source,bash]
+----
+> nslookup 10.0.3.5
+Server:         172.20.0.10
+Address:        172.20.0.10:53
+
+Non-authoritative answer:
+5.3.0.10.in-addr.arpa   name = win-8sgn1ju6kut.ada.letuscode.xyz
+5.3.0.10.in-addr.arpa   name = ada.letuscode.xyz
+
+> nslookup 10.0.4.55
+Server:         172.20.0.10
+Address:        172.20.0.10:53
+
+Non-authoritative answer:
+55.4.0.10.in-addr.arpa  name = win-0lu0jt0n3fk.ada.letuscode.xyz
+55.4.0.10.in-addr.arpa  name = ada.letuscode.xyz
+----
+
+.Query the domain controllers for ada.letuscode.xyz
+[source,bash]
+----
+> nslookup -type=srv _ldap._tcp.dc._msdcs.ada.letuscode.xyz
+Server:         172.20.0.10
+Address:        172.20.0.10:53
+
+Non-authoritative answer:
+_ldap._tcp.dc._msdcs.ada.letuscode.xyz  service = 0 100 389 win-8sgn1ju6kut.ada.letuscode.xyz
+_ldap._tcp.dc._msdcs.ada.letuscode.xyz  service = 0 100 389 win-0lu0jt0n3fk.ada.letuscode.xyz
+----
+
+=== LDAP Queries Simple Auth
+
+.Search ldap of domain ada.letuscode.xyz
+[source,bash]
+----
+ldapsearch -x -H ldap://ada.letuscode.xyz -b 'dc=ada,dc=letuscode,dc=xyz' -D ${LDAP_USERNAME} -w ${LDAP_PASSWORD}
+----
+
+=== LDAP Queries Kerberos Auth
+
+https://www.ibm.com/docs/en/i/7.1?topic=service-defining-realms-in-dns-database
+
+.Search ldap of domain ada.letuscode.xyz
+[source,bash]
+----
+kinit -c /tmp/admin.cc.tmp Admin@ADA.LETUSCODE.XYZ
+export KRB5CCNAME=/tmp/admin.cc.tmp
+ldapsearch -H ldap://ada.letuscode.xyz -Y GSSAPI -b 'dc=ada,dc=letuscode,dc=xyz' -U ${LDAP_USERNAME} -R ADA.LETUSCODE.XYZ
+----
