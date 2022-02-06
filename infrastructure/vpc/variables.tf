@@ -12,6 +12,7 @@ variable "environment" {
 
 variable "route53_public_main_zone" {
   default = "letuscode.dev"
+  description = "A public hosted zone for this domain must already exists in Route 53."
 }
 
 variable "vpc_cidr" {

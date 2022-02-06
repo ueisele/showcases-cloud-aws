@@ -8,9 +8,9 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastru
 
 === Domains
 
-The infrastructure provisioning requires two existing public hosted zones. In the following section it is described how you can add a domain which is registered at link:https://www.godaddy.com/[GoDaddy]. However, it works similar for any other domain registrar.
+The infrastructure provisioning requires one existing public hosted zone. In the following section it is described how you can add a domain which is registered at link:https://www.godaddy.com/[GoDaddy]. However, it works similar for any other domain registrar.
 
-Repead the steps in the following two sections for boths domains, e.g. `letuscode.dev` and `letuscode.xyz`.
+If you want you can also create a second public hosted zone (e.g. `letuscode.xyz`), though it is not required.
 
 ==== Create Route 53 Hosted Zone
 

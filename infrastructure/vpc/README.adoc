@@ -9,9 +9,12 @@ Ensure you have the required link:required-iam-policy.json[IAM permissions].
 terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
+By default the domain `letuscode.dev` is used. It is required that a public hosted zone for this domain already exists.
+If you want to specifiy a different public domain, you can set the `route53_public_main_zone` variable to your domain.
+
 [source,bash]
 ----
-terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
+terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}" --var "route53_public_main_zone=letuscode.dev"
 ----
 
 == Save Outputs to Variables

@@ -230,10 +230,25 @@ data "aws_iam_policy_document" "efs_csi_controller" {
 # EFS                           #
 #################################
 
-resource "aws_efs_file_system" "eks_pod_storage" {
-  creation_token = "${var.environment}-eks-pod-storage"
+resource "aws_kms_key" "efs_csi_driver" {
+  description             = "This key is used to encrypt EFS volumes created by Kubernetes EFS CSI driver."
+  key_usage               = "ENCRYPT_DECRYPT"
+  deletion_window_in_days = 7
+
+  tags = {
+    Name        = "${var.environment}-${local.efs_csi_driver_name}"
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
+resource "aws_efs_file_system" "efs_csi_driver" {
+  creation_token = "${var.environment}-${local.efs_csi_driver_name}"
 
   performance_mode = "generalPurpose"
+
+  encrypted = true
+  kms_key_id = aws_kms_key.efs_csi_driver.arn
 
   lifecycle_policy {
     transition_to_ia = "AFTER_7_DAYS"
@@ -244,22 +259,22 @@ resource "aws_efs_file_system" "eks_pod_storage" {
   }
 
   tags = {
-    Name        = "${var.environment}-eks-pod-storage"
+    Name        = "${var.environment}-${local.efs_csi_driver_name}"
     Environment = var.environment
     Terraform   = "true"
   }
 }
 
-resource "aws_efs_mount_target" "eks_pod_storage" {
+resource "aws_efs_mount_target" "efs_csi_driver" {
   count = length(data.aws_subnet_ids.private.ids)
 
-  file_system_id  = aws_efs_file_system.eks_pod_storage.id
+  file_system_id  = aws_efs_file_system.efs_csi_driver.id
   subnet_id       = element(tolist(data.aws_subnet_ids.private.ids), count.index)
-  security_groups = [aws_security_group.efs.id]
+  security_groups = [aws_security_group.efs_csi_driver.id]
 }
 
-resource "aws_security_group" "efs" {
-  name        = "${var.environment}-efs"
+resource "aws_security_group" "efs_csi_driver" {
+  name        = "${var.environment}-${local.efs_csi_driver_name}"
   description = "Security group for all nodes in the cluster for EFS access"
   vpc_id      = data.aws_vpc.main.id
   ingress {
@@ -270,7 +285,7 @@ resource "aws_security_group" "efs" {
     ipv6_cidr_blocks = [data.aws_vpc.main.ipv6_cidr_block]
   }
   tags = {
-    Name        = "${var.environment}-efs"
+    Name        = "${var.environment}-${local.efs_csi_driver_name}"
     Environment = var.environment
     Terraform   = "true"
   }
@@ -279,14 +294,12 @@ resource "aws_security_group" "efs" {
 #################################
 # Storage Class                 #
 #################################
+# https://github.com/kubernetes-sigs/aws-efs-csi-driver#storage-class-parameters-for-dynamic-provisioning
 
 resource "kubernetes_storage_class_v1" "efs" {
   metadata {
     name = "efs"
     labels = {
-      "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = local.efs_csi_driver_name
-      "app.kubernetes.io/name"       = local.efs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -296,12 +309,12 @@ resource "kubernetes_storage_class_v1" "efs" {
   volume_binding_mode = "Immediate"
   parameters = {
     provisioningMode = "efs-ap"
-    fileSystemId     = aws_efs_file_system.eks_pod_storage.id
+    fileSystemId     = aws_efs_file_system.efs_csi_driver.id
     directoryPerms : "700"
   }
 
   depends_on = [
     helm_release.efs_csi_driver,
-    aws_efs_mount_target.eks_pod_storage
+    aws_efs_mount_target.efs_csi_driver
   ]
 }

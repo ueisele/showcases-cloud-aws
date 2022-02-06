@@ -300,6 +300,20 @@ data "aws_iam_policy_document" "ebs_csi_controller" {
 # Storage Classes               #
 #################################
 
+## KMS Key for storage encryption
+
+resource "aws_kms_key" "ebs_csi_driver" {
+  description             = "This key is used to encrypt EBS volumes created by Kubernetes EBS CSI driver."
+  key_usage               = "ENCRYPT_DECRYPT"
+  deletion_window_in_days = 7
+
+  tags = {
+    Name        = "${var.environment}-${local.ebs_csi_driver_name}"
+    Environment = var.environment
+    Terraform   = "true"
+  }
+}
+
 ## Update existing gp2 storage class
 
 resource "kubectl_manifest" "gp2" {
@@ -321,14 +335,12 @@ resource "kubectl_manifest" "gp2" {
 }
 
 ## New Storage Classes
+# https://github.com/kubernetes-sigs/aws-ebs-csi-driver#createvolume-parameters
 
 resource "kubernetes_storage_class_v1" "gp3" {
   metadata {
     name = "gp3"
     labels = {
-      "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = local.ebs_csi_driver_name
-      "app.kubernetes.io/name"       = local.ebs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
     annotations = {
@@ -342,6 +354,8 @@ resource "kubernetes_storage_class_v1" "gp3" {
   parameters = {
     type                        = "gp3"
     "csi.storage.k8s.io/fstype" = "ext4"
+    encrypted = true
+    kmsKeyId = aws_kms_key.ebs_csi_driver.arn
     #iops = "3000"
     #throughput = "125"
   }
@@ -353,9 +367,6 @@ resource "kubernetes_storage_class_v1" "st1" {
   metadata {
     name = "st1"
     labels = {
-      "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = local.ebs_csi_driver_name
-      "app.kubernetes.io/name"       = local.ebs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -366,6 +377,8 @@ resource "kubernetes_storage_class_v1" "st1" {
   parameters = {
     type                        = "st1"
     "csi.storage.k8s.io/fstype" = "ext4"
+    encrypted = true
+    kmsKeyId = aws_kms_key.ebs_csi_driver.arn
   }
 
   depends_on = [helm_release.ebs_csi_driver]
@@ -375,9 +388,6 @@ resource "kubernetes_storage_class_v1" "sc1" {
   metadata {
     name = "sc1"
     labels = {
-      "app.kubernetes.io/component"  = "csi-driver"
-      "app.kubernetes.io/instance"   = local.ebs_csi_driver_name
-      "app.kubernetes.io/name"       = local.ebs_csi_controller_name
       "app.kubernetes.io/managed-by" = "Terraform"
     }
   }
@@ -388,6 +398,8 @@ resource "kubernetes_storage_class_v1" "sc1" {
   parameters = {
     type                        = "sc1"
     "csi.storage.k8s.io/fstype" = "ext4"
+    encrypted = true
+    kmsKeyId = aws_kms_key.ebs_csi_driver.arn
   }
 
   depends_on = [helm_release.ebs_csi_driver]

@@ -465,7 +465,7 @@ resource "kubernetes_stateful_set_v1" "kubernetes_dashboard_metrics_scraper" {
 
           args = [
             "--metric-resolution=30s",
-            "--metric-duration=6h",
+            "--metric-duration=2h",
             "--db-file=/tmp/metrics.db"
           ]
 
@@ -486,12 +486,12 @@ resource "kubernetes_stateful_set_v1" "kubernetes_dashboard_metrics_scraper" {
 
           resources {
             limits = {
-              cpu    = "50m"
-              memory = "64Mi"
+              cpu    = "100m"
+              memory = "128Mi"
             }
             requests = {
-              cpu    = "50m"
-              memory = "64Mi"
+              cpu    = "100m"
+              memory = "128Mi"
             }
           }
 
@@ -581,7 +581,7 @@ resource "kubernetes_stateful_set_v1" "kubernetes_dashboard_metrics_scraper" {
         storage_class_name = "efs"
         resources {
           requests = {
-            storage = "50Mi"
+            storage = "25Mi"
           }
         }
       }
