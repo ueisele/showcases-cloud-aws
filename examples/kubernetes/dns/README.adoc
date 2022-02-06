@@ -19,3 +19,9 @@ kubectl get pods dnsutils
 ----
 kubectl exec -i -t dnsutils -- nslookup kubernetes.default
 ----
+
+.Finally remove the pod
+[source,bash]
+----
+kubectl delete -f dnsutils-pod.yaml
+----
