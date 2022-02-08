@@ -15,4 +15,8 @@ RUN apt-get update \
     && apt-get -y install ldap-utils libnss-ldap libsasl2-modules-gssapi-mit krb5-user \
     && apt-get clean
 
+#RUN apt-get update \
+#    && apt-get -y install sssd realmd samba-common packagekit adcli \
+#    && apt-get clean
+
 ENV DEBIAN_FRONTEND=

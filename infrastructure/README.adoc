@@ -37,7 +37,12 @@ Deploy in the following order:
 * link:k8s-system[Kubernetes System Setup]
 * link:k8s-monitoring[Kubernetes Monitoring Setup]
 
+Optional deployments in following order:
+
+* link:ldap[Windows AD Setup]
+* link:ec2-windows[Windows EC2 with AD Setup]
+
 The following are work in progress and not used until now:
 
-* link:ec2[EC2]
+* link:ec2-linux[EC2]
 * link:cognito[Cognito]

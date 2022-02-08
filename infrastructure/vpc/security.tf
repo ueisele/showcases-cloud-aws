@@ -83,6 +83,32 @@ resource "aws_network_acl_rule" "public_ingress_ipv6_https" {
   to_port         = 443
 }
 
+resource "aws_network_acl_rule" "public_ingress_ipv4_rdp" {
+  count = length(aws_network_acl.public.*) > 0 ? 1 : 0
+
+  network_acl_id = aws_network_acl.public[0].id
+  egress         = false
+  rule_number    = 140
+  protocol       = "tcp"
+  rule_action    = "allow"
+  cidr_block     = "0.0.0.0/0"
+  from_port      = 3389
+  to_port        = 3389
+}
+
+resource "aws_network_acl_rule" "public_ingress_ipv6_rdp" {
+  count = length(aws_network_acl.public.*) > 0 ? 1 : 0
+
+  network_acl_id  = aws_network_acl.public[0].id
+  egress          = false
+  rule_number     = 150
+  protocol        = "tcp"
+  rule_action     = "allow"
+  ipv6_cidr_block = "::/0"
+  from_port       = 3389
+  to_port         = 3389
+}
+
 resource "aws_network_acl_rule" "public_ingress_ipv4_ephemeral" {
   count = length(aws_network_acl.public.*) > 0 ? 1 : 0
 

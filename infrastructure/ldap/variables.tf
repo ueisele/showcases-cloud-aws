@@ -10,8 +10,12 @@ variable "environment" {
   default = "ada"
 }
 
-variable "ldap_main_zone" {
+variable "local_ldap_base_domain" {
   default = "letuscode.xyz"
+}
+
+variable "remote_ldap_domain" {
+  default = "com.codelabs.dev"
 }
 
 variable "ldap_az_1" {

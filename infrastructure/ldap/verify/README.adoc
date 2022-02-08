@@ -1,0 +1,36 @@
+= Build Multi Arch Docker Images
+
+== Prerequisites
+
+Enable execution of different multi-architecture containers by QEMU and binfmt_misc (see https://github.com/multiarch/qemu-user-static):
+
+[source,bash]
+----
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+----
+
+== Run 
+
+[source,bash]
+----
+docker run --rm --platform linux/arm64 debian:bullseye-slim uname -a
+----
+
+== Build
+
+.Single target build works with local docker driver
+[source,bash]
+----
+docker buildx build --platform linux/arm64 -t ueisele/ldap-utils:latest --push .
+----
+
+.Multi target builds only works with docker-container driver
+----
+docker buildx create --name builder --use
+docker buildx build --platform linux/amd64,linux/arm64 -t ueisele/ldap-utils:latest --push .
+----
+
+== Further Reads
+
+* https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
+* https://www.docker.com/blog/speed-up-building-with-docker-buildx-and-graviton2-ec2/

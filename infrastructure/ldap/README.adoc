@@ -27,35 +27,46 @@ export NS_EXAMPLES=examples-$(whoami)
 kubectl create ns ${NS_EXAMPLES}
 ----
 
+.Determine LDAP IDs
+[source,bash]
+----
+export LOCAL_LDAP_ID=$(terraform output --raw local_ldap_id)
+export LOCAL_LDAP_NAME=$(terraform output --raw local_ldap_name)
+export REMOTE_LDAP_ID=$(terraform output --raw remote_ldap_id)
+export REMOTE_LDAP_NAME=$(terraform output --raw remote_ldap_name)
+----
+
 .Determine LDAP username and password
 [source,bash]
 ----
-export LDAP_USERNAME=$(terraform output --raw ldap_username)
-export LDAP_PASSWORD=$(terraform output --raw ldap_password)
+export LOCAL_LDAP_USERNAME=$(terraform output --raw local_ldap_username)
+export LOCAL_LDAP_PASSWORD=$(terraform output --raw local_ldap_password)
+export REMOTE_LDAP_USERNAME=$(terraform output --raw remote_ldap_username)
+export REMOTE_LDAP_PASSWORD=$(terraform output --raw remote_ldap_password)
 ----
 
 .Use that manifest to create the Pod
 [source,bash]
 ----
-envsubst < verify/ldaputils-pod.yaml | kubectl -n ${NS_EXAMPLES} apply -f -
+envsubst < verify/ldaptools.yaml | kubectl -n ${NS_EXAMPLES} apply -f -
 ----
 
 .…and verify its status
 [source,bash]
 ----
-kubectl -n ${NS_EXAMPLES} get pods ldaputils
+kubectl -n ${NS_EXAMPLES} get pods ldaptools
 ----
 
 .Once that Pod is running, you can exec into the pod
 [source,bash]
 ----
-kubectl -n ${NS_EXAMPLES} exec -it ldaputils -- sh
+kubectl -n ${NS_EXAMPLES} exec -it ldaptools -- sh
 ----
 
 .Finally, after you are done, remove the Pod
 [source,bash]
 ----
-envsubst < verify/ldaputils-pod.yaml | kubectl -n ${NS_EXAMPLES} delete -f -
+envsubst < verify/ldaptools.yaml | kubectl -n ${NS_EXAMPLES} delete -f -
 ----
 
 === DNS Resolution
