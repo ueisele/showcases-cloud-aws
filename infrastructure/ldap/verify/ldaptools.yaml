@@ -8,6 +8,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: ldaptools
   replicas: 1
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -36,6 +38,10 @@ spec:
           requests:
             cpu: 100m
             memory: 100Mi
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:

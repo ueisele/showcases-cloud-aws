@@ -1,4 +1,4 @@
-= LDAP
+= AWS Directory Service (AD)
 
 https://aws.amazon.com/de/blogs/networking-and-content-delivery/integrating-your-directory-services-dns-resolution-with-amazon-route-53-resolvers/
 
@@ -16,7 +16,17 @@ terraform init -backend-config="profile=${SHOWCASE_AWS_PROFILE}"
 terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 ----
 
-== LDAP
+Determine LDAP IDs:
+
+[source,bash]
+----
+export LOCAL_LDAP_ID=$(terraform output --raw local_ldap_id)
+export LOCAL_LDAP_NAME=$(terraform output --raw local_ldap_name)
+export REMOTE_LDAP_ID=$(terraform output --raw remote_ldap_id)
+export REMOTE_LDAP_NAME=$(terraform output --raw remote_ldap_name)
+----
+
+== Verify LDAP and Kerberos
 
 === Deploy Verification Pod
 
@@ -25,15 +35,6 @@ terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 ----
 export NS_EXAMPLES=examples-$(whoami)
 kubectl create ns ${NS_EXAMPLES}
-----
-
-.Determine LDAP IDs
-[source,bash]
-----
-export LOCAL_LDAP_ID=$(terraform output --raw local_ldap_id)
-export LOCAL_LDAP_NAME=$(terraform output --raw local_ldap_name)
-export REMOTE_LDAP_ID=$(terraform output --raw remote_ldap_id)
-export REMOTE_LDAP_NAME=$(terraform output --raw remote_ldap_name)
 ----
 
 .Determine LDAP username and password
@@ -122,17 +123,113 @@ _ldap._tcp.dc._msdcs.ada.letuscode.xyz  service = 0 100 389 win-0lu0jt0n3fk.ada.
 .Search ldap of domain ada.letuscode.xyz
 [source,bash]
 ----
-ldapsearch -x -H ldap://ada.letuscode.xyz -b 'dc=ada,dc=letuscode,dc=xyz' -D ${LDAP_USERNAME} -w ${LDAP_PASSWORD}
+ldapsearch -x -H ldap://ada.letuscode.xyz -b 'dc=ada,dc=letuscode,dc=xyz' -D ${LOCAL_LDAP_USERNAME} -w ${LOCAL_LDAP_PASSWORD}
 ----
 
 === LDAP Queries Kerberos Auth
 
-https://www.ibm.com/docs/en/i/7.1?topic=service-defining-realms-in-dns-database
+Lets prepare for Kerberos authentication. First the realm configuration must be added to the [/etc/krb5.conf](verify/krb5.conf) file:
 
-.Search ldap of domain ada.letuscode.xyz
+```bash
+cat > /etc/krb5.conf << EOF
+[libdefaults]
+        default_realm = ADA.LETUSCODE.XYZ
+        rdns = false
+        
+        kdc_timesync = 0
+        ccache_type = 4
+        forwardable = true
+        proxiable = true
+
+[realms]
+        ADA.LETUSCODE.XYZ = {
+                kdc = ada.letuscode.xyz
+                admin_server = ada.letuscode.xyz
+                default_domain = ada.letuscode.xyz
+        }
+        COM.CODELABS.DEV = {
+                kdc = com.codelabs.dev
+                admin_server = com.codelabs.dev
+                default_domain = com.codelabs.dev
+        }
+
+[domain_realm]
+        .ada.letuscode.xyz = ADA.LETUSCODE.XYZ
+        ada.letuscode.xyz = ADA.LETUSCODE.XYZ
+        .com.codelabs.dev = COM.CODELABS.DEV
+        com.codelabs.dev = COM.CODELABS.DEV
+EOF
+```
+
+Now we can login with the command line tool `kinit` using the `ADA.LETUSCODE.XYZ` realm.
+
 [source,bash]
 ----
-kinit -c /tmp/admin.cc.tmp Admin@ADA.LETUSCODE.XYZ
-export KRB5CCNAME=/tmp/admin.cc.tmp
-ldapsearch -H ldap://ada.letuscode.xyz -Y GSSAPI -b 'dc=ada,dc=letuscode,dc=xyz' -U ${LDAP_USERNAME} -R ADA.LETUSCODE.XYZ
+export KRB5CCNAME=/tmp/admin.ada.letuscode.xyz.cc.tmp
+echo ${LOCAL_LDAP_PASSWORD} | kinit -c ${KRB5CCNAME} Admin@ADA.LETUSCODE.XYZ
 ----
+
+Show the current login with `klist`:
+
+[source,bash]
+----
+> klist
+Ticket cache: FILE:/tmp/admin.ada.letuscode.xyz.cc.tmp
+Default principal: Admin@ADA.LETUSCODE.XYZ
+
+Valid starting     Expires            Service principal
+02/09/22 08:05:54  02/09/22 18:05:54  krbtgt/ADA.LETUSCODE.XYZ@ADA.LETUSCODE.XYZ
+        renew until 02/10/22 08:05:54
+----
+
+Execute `ldapsearch` with Kerberos authentication (using the previously authenticated user) and query domain `ada.letuscode.xyz`:
+
+[source,bash]
+----
+ldapsearch -H ldap://ada.letuscode.xyz -Y GSSAPI -b 'dc=ada,dc=letuscode,dc=xyz' -U Admin@ada.letuscode.xyz -R ADA.LETUSCODE.XYZ
+----
+
+==== Troubleshooting
+
+Unfortunately, sometimes, the following error is returned:
+
+----
+SASL/GSSAPI authentication started
+ldap_sasl_interactive_bind_s: Local error (-2)
+        additional info: SASL(-1): generic failure: GSSAPI Error: Unspecified GSS failure.  Minor code may provide more information (Server not found in Kerberos database)
+----
+
+It looks like, the reason is, that Kerberos executed an reverse DNS lookup on an IP address returned by an DNS query for `ada.letuscode.xyz`. This reverse DNS request sometimes returns the hostname of the Domain controller, or the domain name itself as first entry. It only works if the hostname is the first entry, because this name is used in the Kerberos request.
+
+You can simulate this by yourself with DNS lookup:
+
+[source,bash]
+----
+nslookup ada.letuscode.xyz
+----
+
+Now take one IP and make an reverse DNS lookup:
+
+[source,bash]
+----
+nslookup 10.0.4.52
+----
+
+You will recognize that sometimes the hostname is the first entry:
+
+----
+52.4.0.10.in-addr.arpa  name = win-s7kcc3309rm.ada.letuscode.xyz.
+52.4.0.10.in-addr.arpa  name = ada.letuscode.xyz.
+----
+
+And sometimes the domain, which will not work:
+
+----
+52.4.0.10.in-addr.arpa  name = ada.letuscode.xyz.
+52.4.0.10.in-addr.arpa  name = win-s7kcc3309rm.ada.letuscode.xyz.
+----
+
+There are two possible solutions:
+
+* Adjust the DNS entry, in which only the actual hostname is returend
+* Disable Kerberos reverse DNS lookup (I thought that `rdns=false` is doing this, but seems not the case). It seems that ldapsearch ignores this (https://lists.andrew.cmu.edu/pipermail/cyrus-sasl/2014-July/002736.html and https://www.openldap.org/lists/openldap-bugs/201507/msg00061.html).

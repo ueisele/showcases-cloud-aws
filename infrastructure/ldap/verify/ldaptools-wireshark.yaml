@@ -8,6 +8,8 @@ spec:
     matchLabels:
       app.kubernetes.io/name: ldaptools-wireshark
   replicas: 1
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
@@ -52,6 +54,10 @@ spec:
         securityContext:
           capabilities:
             add: ["NET_ADMIN", "NET_RAW"]
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
       affinity:
         nodeAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
