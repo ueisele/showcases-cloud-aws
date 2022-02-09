@@ -34,10 +34,10 @@ spec:
         resources:
           limits:
             cpu: 100m
-            memory: 256Mi
+            memory: 128Mi
           requests:
             cpu: 100m
-            memory: 100Mi
+            memory: 128Mi
       dnsConfig:
         options:
         - name: ndots

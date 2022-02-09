@@ -52,16 +52,10 @@ export REMOTE_LDAP_PASSWORD=$(terraform output --raw remote_ldap_password)
 envsubst < verify/ldaptools.yaml | kubectl -n ${NS_EXAMPLES} apply -f -
 ----
 
-.…and verify its status
-[source,bash]
-----
-kubectl -n ${NS_EXAMPLES} get pods ldaptools
-----
-
 .Once that Pod is running, you can exec into the pod
 [source,bash]
 ----
-kubectl -n ${NS_EXAMPLES} exec -it ldaptools -- sh
+kubectl -n ${NS_EXAMPLES} exec -it $(kubectl -n ${NS_EXAMPLES} get pods -l app.kubernetes.io/name=ldaptools -o name) bash
 ----
 
 .Finally, after you are done, remove the Pod
@@ -179,14 +173,13 @@ Default principal: Admin@ADA.LETUSCODE.XYZ
 
 Valid starting     Expires            Service principal
 02/09/22 08:05:54  02/09/22 18:05:54  krbtgt/ADA.LETUSCODE.XYZ@ADA.LETUSCODE.XYZ
-        renew until 02/10/22 08:05:54
 ----
 
 Execute `ldapsearch` with Kerberos authentication (using the previously authenticated user) and query domain `ada.letuscode.xyz`:
 
 [source,bash]
 ----
-ldapsearch -H ldap://ada.letuscode.xyz -Y GSSAPI -b 'dc=ada,dc=letuscode,dc=xyz' -U Admin@ada.letuscode.xyz -R ADA.LETUSCODE.XYZ
+ldapsearch -H ldap://ada.letuscode.xyz -Y GSSAPI -b 'dc=ada,dc=letuscode,dc=xyz' -R ADA.LETUSCODE.XYZ
 ----
 
 ==== Troubleshooting
@@ -233,3 +226,125 @@ There are two possible solutions:
 
 * Adjust the DNS entry, in which only the actual hostname is returend
 * Disable Kerberos reverse DNS lookup (I thought that `rdns=false` is doing this, but seems not the case). It seems that ldapsearch ignores this (https://lists.andrew.cmu.edu/pipermail/cyrus-sasl/2014-July/002736.html and https://www.openldap.org/lists/openldap-bugs/201507/msg00061.html).
+
+== Create Trust Relationship
+
+We want to create trust relation ship between the local domain (ada.letuscode.xyz) and the remote domain (com.codelabs.dev). 
+The goal is, that user on the remote domain (com.codelabs.dev) can authenticate on the local domain (ada.letuscode.xyz).
+In order to achieve this, an _outgoing_ trust must be created on the local domain (ada.letuscode.xyz) and an _incoming_ trust on the remote domain (com.codelabs.dev).
+
+Unfortunately, the creation of trust relationship is not supported by Terraform until now: https://github.com/hashicorp/terraform-provider-aws/issues/11901
+
+Required security groups are created by the Terraform script (see https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_tutorial_setup_trust_prepare_mad_between_2_managed_ad_domains.html)
+
+.Trust directions
+----
+local -- one-way: outgoing --> remote
+remote <-- one-way: incoming -- local
+----
+
+.Local (ada.letuscode.xyz) Trust Relationship
+----
+Trust type: Forest trust
+Existing or new remote domain: com.codelabs.dev # the remote domain
+Trust password: your_trust_password # the same password must be used when setting up the trust relationship on the remote domain.
+Trust direction: One-way: outgoing # users in the remote domain can access resources in this domain
+Conditional forwarders: [10.0.3.202, 10.0.4.51] # ips of the domain controllers of the remote domain
+----
+
+.Remote (com.codelabs.dev) Trust Relationship
+----
+Trust type: Forest trust
+Existing or new remote domain: ada.letuscode.xyz # the local domain
+Trust password: your_trust_password # the same password must be used when setting up the trust relationship on the local domain.
+Trust direction: One-way: incoming # users in this domain can access resources in the local domain.
+Conditional forwarders: [10.0.4.52, 10.0.3.119] # ips of the domain controllers of the local domain
+----
+
+=== References
+
+* https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_setup_trust.html
+* https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_tutorial_setup_trust_between_2_managed_ad_domains.html
+
+== Verify Trust Relationship
+
+=== On Linux with Ldapsearch and Kerberos
+
+Exec into a newly deployed instance of the ldaptools pod and follow the setup required for Kerberos authentication.
+
+Instead of login to `ADA.LETUSCODE.XYZ`, we now login to the realm `COM.CODELABS.DEV` with `kinit`.
+
+[source,bash]
+----
+export KRB5CCNAME=/tmp/admin.com.codelabs.dev.cc.tmp
+echo ${REMOTE_LDAP_PASSWORD} | kinit -c ${KRB5CCNAME} Admin@COM.CODELABS.DEV
+----
+
+Show the current login with `klist`:
+
+----
+Ticket cache: FILE:/tmp/admin.com.codelabs.dev.cc.tmp
+Default principal: Admin@COM.CODELABS.DEV
+
+Valid starting     Expires            Service principal
+02/09/22 21:57:18  02/10/22 07:57:18  krbtgt/COM.CODELABS.DEV@COM.CODELABS.DEV
+----
+
+Execute `ldapsearch` with Kerberos authentication (using the previously authenticated user) and query domain `com.codelabs.dev`:
+
+[source,bash]
+----
+ldapsearch -H ldap://com.codelabs.dev -Y GSSAPI -b 'dc=com,dc=codelabs,dc=dev' -R COM.CODELABS.DEV
+----
+
+If you execute `klist` again, you see, that also an login to a domain controller of `com.codelabs.dev` happend:
+
+----
+Ticket cache: FILE:/tmp/admin.com.codelabs.dev.cc.tmp
+Default principal: Admin@COM.CODELABS.DEV
+
+Valid starting     Expires            Service principal
+02/09/22 21:57:18  02/10/22 07:57:18  krbtgt/COM.CODELABS.DEV@COM.CODELABS.DEV
+02/09/22 21:59:19  02/10/22 07:57:18  ldap/win-i4nq6d8gegm.com.codelabs.dev@COM.CODELABS.DEV
+----
+
+Now, execute `ldapsearch` with Kerberos authentication and query domain `ada.letuscode.xyz`:
+
+[source,bash]
+----
+ldapsearch -H ldap://ada.letuscode.xyz -Y GSSAPI -b 'dc=ada,dc=letuscode,dc=xyz' -R COM.CODELABS.DEV
+----
+
+This command uses the `admin` user which has been authenticated by `com.codelabs.dev`.
+
+If you now execute `klist` again, you will see, that also an login for `ada.letuscode.xyz` exists.
+
+----
+Ticket cache: FILE:/tmp/admin.com.codelabs.dev.cc.tmp
+Default principal: Admin@COM.CODELABS.DEV
+
+Valid starting     Expires            Service principal
+02/09/22 21:57:18  02/10/22 07:57:18  krbtgt/COM.CODELABS.DEV@COM.CODELABS.DEV
+02/09/22 21:59:19  02/10/22 07:57:18  ldap/win-i4nq6d8gegm.com.codelabs.dev@COM.CODELABS.DEV
+02/09/22 22:01:43  02/10/22 07:57:18  krbtgt/ADA.LETUSCODE.XYZ@COM.CODELABS.DEV
+02/09/22 22:01:43  02/10/22 07:57:18  ldap/win-hljpgj485cu.ada.letuscode.xyz@ADA.LETUSCODE.XYZ
+----
+
+You can logout with the `kdestroy` command
+
+=== On Windows with Login
+
+Provision Windows EC2 instances with link:../ec2-windows[../ec2-windows], connect to the Windows instance which is assigned to domain `ada.letuscode.xyz` and login with user `Admin@ada.letuscode.xyz`.
+
+Before you can login with users from domain `com.codelabs.dev`, the corresponding users must be added to the `AWS Delegated Administrators` group with the `Active Directory Users and Computers` tool (see https://www.youtube.com/watch?v=iLxc8XaMpno).
+
+  * Open properties of the `AWS Delegated Administrators` group
+  * Navigate to `members` and click on `Add`
+  * Select `com.codelabs.dev` as location
+  * Write `admin` in the `Enter the object name` field and click on `Check Names`
+  * You will be asked for an user with permissions on domain `com.codelabs.dev`. The reason for this is, that it is only a one-way trust. Use `com\admin` as user and its corresponding password.
+  * Click on `Ok` to add the user
+
+Log out from the Windows EC2 instance and login again with the `admin` user of domain `com.codelabs.dev`:
+
+Adding each user individually to the group is not practical. In order to simplify this global groups can be used which are known in both domains (see https://ss64.com/nt/syntax-groups.html)

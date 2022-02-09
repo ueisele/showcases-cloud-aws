@@ -93,3 +93,63 @@ output "remote_ldap_password" {
   value     = random_password.remote_ldap_password.result
   sensitive = true
 }
+
+#################################
+# Trust Relationship            #
+#################################
+# local -- one-way: outgoing --> remote
+# remote <-- one-way: incoming -- local
+
+# Unfortunately, the creation of trust relationship is not supported by Terraform until now:
+#   https://github.com/hashicorp/terraform-provider-aws/issues/11901
+
+# In this section the required security groups are created:
+#   https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_tutorial_setup_trust_prepare_mad_between_2_managed_ad_domains.html
+
+# Local LDAP Egress
+
+resource "aws_security_group_rule" "local_egress_to_remote" {
+  description              = "Allow any traffic to remote LDAP"
+  security_group_id        = aws_directory_service_directory.local.security_group_id
+  type                     = "egress"
+  source_security_group_id = aws_directory_service_directory.remote.security_group_id
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "-1"
+}
+
+# Remote LDAP Ingress
+
+resource "aws_security_group_rule" "remote_ingress_from_local" {
+  description              = "Allow any traffic from local LDAP"
+  security_group_id        = aws_directory_service_directory.remote.security_group_id
+  type                     = "ingress"
+  source_security_group_id = aws_directory_service_directory.local.security_group_id
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "-1"
+}
+
+# Remote LDAP Egress
+
+resource "aws_security_group_rule" "remote_egress_to_local" {
+  description              = "Allow any traffic to local LDAP"
+  security_group_id        = aws_directory_service_directory.remote.security_group_id
+  type                     = "egress"
+  source_security_group_id = aws_directory_service_directory.local.security_group_id
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "-1"
+}
+
+# Local LDAP Ingress
+
+resource "aws_security_group_rule" "local_ingress_from_remote" {
+  description              = "Allow any traffic from remote LDAP"
+  security_group_id        = aws_directory_service_directory.local.security_group_id
+  type                     = "ingress"
+  source_security_group_id = aws_directory_service_directory.remote.security_group_id
+  from_port                = 0
+  to_port                  = 65535
+  protocol                 = "-1"
+}

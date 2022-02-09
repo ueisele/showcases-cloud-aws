@@ -34,20 +34,20 @@ spec:
         resources:
           limits:
             cpu: 100m
-            memory: 256Mi
+            memory: 128Mi
           requests:
             cpu: 100m
-            memory: 100Mi
+            memory: 128Mi
       - name: wireshark
         image: ueisele/wireshark:3.6.1
         imagePullPolicy: Always
         resources:
           limits:
             cpu: 1000m
-            memory: 1536Mi
+            memory: 1408Mi
           requests:
             cpu: 1000m
-            memory: 1536Mi
+            memory: 1408Mi
         ports:
           - containerPort: 14500
             name: https

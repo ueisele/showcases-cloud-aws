@@ -95,3 +95,12 @@ terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 
 * Security Groups for Pods: https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html
 * Network Isolation with Calico: https://docs.aws.amazon.com/eks/latest/userguide/calico.html
+
+=== Access
+
+* VPN Server for secure access
+
+=== Resource Usage
+
+* Evaluate Cluster Autoscaler and alternatives (see https://towardsdev.com/karpenter-vs-cluster-autoscaler-dd877b91629b). At the moment for example, even if Node Affinity perfers an ARM instance, an x64 instance is started.
+* Autoscaling should remove replace an instance with a smaler type if possible.

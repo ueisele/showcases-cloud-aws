@@ -1,6 +1,11 @@
 = EC2 Windows with AD
 
-Windows EC2 instaces connect automatically to AWS Directory Service. 
+Windows EC2 instaces, which connect automatically to AWS Directory Service.
+
+* Local instance, which connects to local AD (ada.letuscode.xyz)
+* Remote instance, which connects to remote AD (com.codelabs.dev)
+
+Both instances are reachable over the Internet via RDP.
 
 == Apply Terraform
 
@@ -41,12 +46,21 @@ terraform output remote_windows_username
 terraform output remote_windows_password
 ----
 
+Besides the local Administrator account, you can also authenticate with users of the corresponding AD. See link:../ldap[../ldap] for information about how to get the Admin user password of the ADs.
+
 == Manage AD
 
 Install the Active Directory Administration Tools on the Windows instance (see https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_install_ad_tools.html).
+
+Create some user at `ou=Users,ou=com,dc=com,dc=codelabs,dc=dev` and `ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz` with which you would like to login later.
 
 == References
 
 * https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/EC2_GetStarted.html
 * https://docs.aws.amazon.com/directoryservice/latest/admin-guide/launching_instance.html
 * https://github.com/fpco/terraform-aws-foundation/tree/master/examples/ad-ec2
+
+== Open Topics
+
+* Automatically install the Active Directory Administration Tools on the Windows instance (see https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_install_ad_tools.html).
+* Create group structure which works also for trusted relationship (see https://ss64.com/nt/syntax-groups.html).
