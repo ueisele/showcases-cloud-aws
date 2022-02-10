@@ -134,9 +134,9 @@ resource "helm_release" "efs_csi_driver" {
 # Pod Disruption Budget         #
 #################################
 
-resource "kubernetes_pod_disruption_budget_v1" "efs_csi_driver" {
+resource "kubernetes_pod_disruption_budget_v1" "efs_csi_controller" {
   metadata {
-    name      = local.efs_csi_driver_name
+    name      = local.efs_csi_controller_name
     namespace = "kube-system"
     labels = {
       "app.kubernetes.io/instance"   = local.efs_csi_driver_name
@@ -148,6 +148,7 @@ resource "kubernetes_pod_disruption_budget_v1" "efs_csi_driver" {
     max_unavailable = "1"
     selector {
       match_labels = {
+        app                          = local.efs_csi_controller_name
         "app.kubernetes.io/instance" = local.efs_csi_driver_name
         "app.kubernetes.io/name"     = local.efs_csi_controller_name
       }
@@ -247,7 +248,7 @@ resource "aws_efs_file_system" "efs_csi_driver" {
 
   performance_mode = "generalPurpose"
 
-  encrypted = true
+  encrypted  = true
   kms_key_id = aws_kms_key.efs_csi_driver.arn
 
   lifecycle_policy {

@@ -1,0 +1,133 @@
+= Confluent Platform with LDAP AuthZ and AuthZ
+
+*HINT*: The installation is based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts], because they allow a more flexible configuration.
+
+== Prerequisites
+
+This example requires link:../../../infrastructure/ldap[infrastructure/ldap] and link:../../../infrastructure/ec2-windows[infrastructure/ec2-windows] to be installed.
+
+Connetc via RDP to the Windows EC2 instanced for `ada.letuscode.xyz` and create the following users and groups:
+
+`ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* mds
+* kafka
+* app_geysers
+
+`ou=Groups,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* team_enceladus
+
+Add user `app_geysers` to group `team_enceladus`.
+
+== Deployment
+
+.Create the Kubernetes namespace for Confluent:
+[source,bash]
+----
+kubectl apply -f k8s/namespace.yaml
+----
+
+.Create the Kubernetes secrets for MDS LDAP authentication:
+[source,bash]
+----
+export MDS_USERNAME='mds@ada.letuscode.xyz'
+export MDS_PASSWORD='my_mds_password'
+envsubst < tpl/secrets.tpl.yaml | kubectl apply -f -
+----
+
+.Deploy ZooKeeper:
+[source,bash]
+----
+kubectl apply -f k8s/zookeeper.yaml
+----
+
+.Deploy Kafka Brokers:
+[source,bash]
+----
+kubectl apply -f k8s/kafka.yaml
+----
+
+.Finaly undeploy everything:
+[source,bash]
+----
+kubectl delete -f k8s/kafka.yaml
+kubectl delete -f k8s/zookeeper.yaml
+envsubst < tpl/secrets.tpl.yaml | kubectl delete -f -
+kubectl -n confluent-ldap delete pvc -l app.kubernetes.io/instance=confluent
+----
+
+== Verify 
+
+.Deploy Cli:
+[source,bash]
+----
+kubectl apply -f k8s/cli.yaml
+----
+
+=== Verify Authenticate
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `kafka` super user
+[source,bash]
+----
+export KAFKA_USERNAME=kafka
+export KAFKA_PASSWORD='my_kafka_password'
+cat > kafka.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${KAFKA_USERNAME}" \
+    password="${KAFKA_PASSWORD}";
+EOF
+----
+
+.List topics with `kafka` super user
+[source,bash]
+----
+kafka-topics --command-config kafka.config --bootstrap-server kafka:9092 --list
+----
+
+This command will lis tall topics.
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with `app_geysers` user
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has no permissions. Therefore no topics are listed.
+
+=== Create Role Bindings
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `kafka`
+[source,bash]
+----
+confluent login
+----
+

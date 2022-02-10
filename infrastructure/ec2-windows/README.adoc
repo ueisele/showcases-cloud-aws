@@ -52,7 +52,7 @@ Besides the local Administrator account, you can also authenticate with users of
 
 Install the Active Directory Administration Tools on the Windows instance (see https://docs.aws.amazon.com/directoryservice/latest/admin-guide/ms_ad_install_ad_tools.html).
 
-Create some user at `ou=Users,ou=com,dc=com,dc=codelabs,dc=dev` and `ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz` with which you would like to login later.
+Create users at `ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz` and `ou=Users,ou=com,dc=com,dc=codelabs,dc=dev` with which you would like to login later.
 
 == References
 
