@@ -1,7 +1,5 @@
 = Confluent Platform with LDAP AuthZ and AuthZ
 
-*HINT*: The installation is based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts], because they allow a more flexible configuration.
-
 The goal of the example is to demonstrate authentication and authorization with LDAP and RBAC. Confluent will be connected to an AD with domain `ada.letuscode.xyz` and uses this as identity provider. Which permissions a user has is defined in Confluent MDS based on role bindings to groups.
 
 == Prerequisites
