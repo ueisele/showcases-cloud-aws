@@ -88,14 +88,29 @@ spec:
           value: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
         #### Authorization ####
         - name: KAFKA_SUPER_USERS
-          value: User:admin;User:mds;User:kafka;User:ANONYMOUS
+          value: User:admin;User:kafka;User:ANONYMOUS
         - name: KAFKA_AUTHORIZER_CLASS_NAME
           value: io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
         - name: KAFKA_CONFLUENT_AUTHORIZER_ACCESS_RULE_PROVIDERS
-          value: ZK_ACL,CONFLUENT
+          value: CONFLUENT
         #### MDS ####
+        # https://docs.confluent.io/platform/current/kafka/configure-mds/index.html
         - name: KAFKA_CONFLUENT_METADATA_SERVER_LISTENERS
           value: http://0.0.0.0:8090
+        - name: KAFKA_CONFLUENT_METADATA_SERVER_AUTHENTICATION_METHOD
+          value: BEARER
+        - name: KAFKA_CONFLUENT_METADATA_SERVER_TOKEN_KEY_PATH
+          value: /mnt/secrets/mds-token/mdsTokenKeyPair.pem
+        #- name: KAFKA_CONFLUENT_METADATA_SERVER_PUBLIC_KEY_PATH
+        #  value: /mnt/secrets/mds-token/mdsPublicKey.pem
+        #- name: KAFKA_CONFLUENT_METADATA_SERVER_TOKEN_AUTH_ENABLE
+        #  value: "false"
+        #- name: KAFKA_CONFLUENT_METADATA_SERVER_TOKEN_SIGNATURE_ALGORITHM
+        #  value: RS256
+        #- name: KAFKA_CONFLUENT_METADATA_SERVER_TOKEN_MAX_LIFETIME_MS
+        #  value: "3600000"
+        #- name: KAFKA_CONFLUENT_METADATA_SERVER_ENABLE_SERVER_URLS_REFRESH
+        #  value: "false"
         #### MDS Ldap ####
         # Configure MDS to talk to AD/LDAP
         - name: KAFKA_LDAP_JAVA_NAMING_PROVIDER_URL
@@ -132,13 +147,6 @@ spec:
           value: member
         - name: KAFKA_LDAP_GROUP_MEMBER_ATTRIBUTE_PATTERN
           value: CN=(.*),OU=Users,OU=ada,DC=ada,DC=letuscode,DC=xyz
-        #### Kafka Rest ####
-        - name: KAFKA_KAFKA_REST_ENABLE
-          value: "true"
-        - name: KAFKA_KAFKA_REST_BOOTSTRAP_SERVERS
-          value: "kafka:9071"
-        - name: KAFKA_KAFKA_REST_CONFLUENT_METADATA_BOOTSTRAP_SERVER_URLS
-          value: http://kafka:8090
         #### Metrics ####
         - name: KAFKA_METRIC_REPORTERS
           value: "io.confluent.metrics.reporter.ConfluentMetricsReporter"
@@ -158,8 +166,15 @@ spec:
           export KAFKA_CONFLUENT_METADATA_SERVER_ADVERTISED_LISTENERS=http://${POD_NAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:8090 && \
           exec /etc/confluent/docker/run
         volumeMounts:
-          - name: datadir
-            mountPath: /var/lib/kafka
+        - name: mds-token
+          mountPath: /mnt/secrets/mds-token
+          readOnly: true
+        - name: datadir
+          mountPath: /var/lib/kafka
+      volumes:
+      - name: mds-token
+        secret:
+          secretName: mds-token
       enableServiceLinks: false
       securityContext:
         fsGroup: 1000

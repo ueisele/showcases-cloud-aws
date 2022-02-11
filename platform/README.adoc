@@ -1,1 +1,4 @@
-= Platforms
+= Platforms (WIP)
+
+This section is work in progres. The idea is to provide several building blocks which could also be combined to an entire platform.
+The `AsyncAPI` folder at the moment containy only some pods which where used for an AsyncAPI showcase and cannot be considered as an building block of a platform.

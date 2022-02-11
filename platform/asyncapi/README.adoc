@@ -1,4 +1,4 @@
-= AsyncAPI Platform
+= AsyncAPI Platform (WIP)
 
 [source,bash]
 ----

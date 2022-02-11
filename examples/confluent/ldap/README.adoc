@@ -2,6 +2,8 @@
 
 *HINT*: The installation is based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts], because they allow a more flexible configuration.
 
+The goal of the example is to demonstrate authentication and authorization with LDAP and RBAC. Confluent will be connected to an AD with domain `ada.letuscode.xyz` and uses this as identity provider. Which permissions a user has is defined in Confluent MDS based on role bindings to groups.
+
 == Prerequisites
 
 This example requires link:../../../infrastructure/ldap[infrastructure/ldap] and link:../../../infrastructure/ec2-windows[infrastructure/ec2-windows] to be installed.
@@ -22,10 +24,17 @@ Add user `app_geysers` to group `team_enceladus`.
 
 == Deployment
 
-.Create the Kubernetes namespace for Confluent:
+.Create the Kubernetes namespace for this example:
 [source,bash]
 ----
-kubectl apply -f k8s/namespace.yaml
+kubectl apply -f namespace.yaml
+----
+
+.Create the Kubernetes secrets for MDS token keypair:
+[source,bash]
+----
+./create-keys.sh
+./btpl security/mds-token.btpl.yaml | kubectl apply -f -
 ----
 
 .Create the Kubernetes secrets for MDS LDAP authentication:
@@ -33,36 +42,38 @@ kubectl apply -f k8s/namespace.yaml
 ----
 export MDS_USERNAME='mds@ada.letuscode.xyz'
 export MDS_PASSWORD='my_mds_password'
-envsubst < tpl/secrets.tpl.yaml | kubectl apply -f -
+./btpl security/mds-credentials.btpl.yaml | kubectl apply -f -
 ----
 
 .Deploy ZooKeeper:
 [source,bash]
 ----
-kubectl apply -f k8s/zookeeper.yaml
+kubectl apply -f cluster/zookeeper.yaml
 ----
 
-.Deploy Kafka Brokers:
+.Deploy Kafka brokers:
 [source,bash]
 ----
-kubectl apply -f k8s/kafka.yaml
+kubectl apply -f cluster/kafka.yaml
 ----
 
-.Finaly undeploy everything:
+.Finaly, if you are done with everything, undeploy it:
 [source,bash]
 ----
-kubectl delete -f k8s/kafka.yaml
-kubectl delete -f k8s/zookeeper.yaml
-envsubst < tpl/secrets.tpl.yaml | kubectl delete -f -
+kubectl delete -f cluster
+kubectl delete -f cli
+./btpl security/mds-token.btpl.yaml | kubectl delete -f -
+./btpl security/mds-credentials.btpl.yaml | kubectl delete -f -
 kubectl -n confluent-ldap delete pvc -l app.kubernetes.io/instance=confluent
+kubectl delete -f namespace.yaml
 ----
 
 == Verify 
 
-.Deploy Cli:
+.Deploy CLIs:
 [source,bash]
 ----
-kubectl apply -f k8s/cli.yaml
+kubectl apply -f cli
 ----
 
 === Verify Authenticate
@@ -117,7 +128,7 @@ kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
 
 This is a valid user, but has no permissions. Therefore no topics are listed.
 
-=== Create Role Bindings
+=== Create Role Bindings for Team Group
 
 .Exec into the Confluent Cli pod
 [source,bash]
@@ -131,3 +142,113 @@ kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.k
 confluent login
 ----
 
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+----
+
+.Create Role Bindings for group `team_enceladus`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperManage \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperWrite \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal Group:team_enceladus
+----
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with `app_geysers` user
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has only permissions for topics prefixed with `enceladus_`.
+
+.Create an topic with name `enceladus_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic enceladus_app1 --replication-factor 3 --partitions 3
+----
+
+.Try to create an topic with name `europa_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic europa_app1 --replication-factor 3 --partitions 3
+----
+
+The user `app_geysers` was only able to create the topic with the name `enceladus_app1`.
+
+.Publish a message to topic `enceladus_app1`
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic enceladus_app1 \
+    --producer.config app.config \
+    --property parse.key=false
+----
+
+.Consume a message from topic `enceladus_app1` with consumer group `enceladus_app1_cg`
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic enceladus_app1 \
+    --group enceladus_app1_cg \
+    --consumer.config app.config  \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----

@@ -10,14 +10,15 @@ image:infrastructure/showcase-infrastructure.drawio.png[]
 
 link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastructure%2Fshowcase-infrastructure.drawio.png[Edit, window=\"_blank\"]
 
-*link:platform[Platforms]*
-
-* link:platform/asyncapi[AsyncAPI]
-
 *link:examples[Examples]*
 
 * link:examples/kubernetes[Kubernetes]
-* link:examples/kafka[Kafka]
+  ** link:examples/kubernetes/dns[Demonstrate DNS capability of the cluster]
+  ** link:examples/kubernetes/storage[Examples which demonstrate persistence]
+  ** link:examples/kubernetes/external-access[Examples which demonstrate how to provide external access]
+* link:examples/confluent[Confluent]
+  ** link:examples/confluent/simple[Simple Kafka Deployment for Docker Compose and Kubernetes]
+  ** link:examples/confluent/ldap[Confluent AuthN and AuthZ with AD and RBAC]
 
 == Prerequisites
 

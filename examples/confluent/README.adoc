@@ -1,0 +1,6 @@
+= Confluent Examples
+
+All examples are based on the Kubernetes installation provided in the link:../../infrastructure[infrastructure] folder of this repository.
+
+* link:simple[Simple Kafka Deployment for Docker Compose and Kubernetes]
+* link:ldap[Confluent AuthN and AuthZ with AD and RBAC]
