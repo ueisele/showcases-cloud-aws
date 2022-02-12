@@ -39,14 +39,14 @@ spec:
           name: leader-election
         resources:
           limits:
-            cpu: 300m
-            memory: 512Mi
+            cpu: 400m
+            memory: 448Mi
           requests:
-            cpu: 300m
-            memory: 512Mi
+            cpu: 200m
+            memory: 448Mi
         env:
         - name: KAFKA_HEAP_OPTS
-          value: "-Xms416M -Xmx416M"
+          value: "-Xms384M -Xmx384M"
         - name: ZOOKEEPER_TICK_TIME
           value: "2000"
         - name: ZOOKEEPER_SYNC_LIMIT

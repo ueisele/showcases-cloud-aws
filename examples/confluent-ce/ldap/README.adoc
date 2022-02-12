@@ -1,0 +1,552 @@
+= Confluent Platform with LDAP AuthZ and AuthZ
+
+The goal of the example is to demonstrate authentication and authorization with LDAP and RBAC on the external listener. Confluent will be connected to an AD with domain `ada.letuscode.xyz` and uses this as identity provider. Which permissions a user has is defined in Confluent MDS based on role bindings to groups.
+
+*IMPORTANT*: This example requires the Confluent Enterprise edition, because RBAC and LDAP authentication are not suppored by the Open Source edition.
+
+*Note*: The Kubernetes manifests are based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts].
+
+== Prerequisites
+
+This example requires link:../../../infrastructure/ldap[infrastructure/ldap] and link:../../../infrastructure/ec2-windows[infrastructure/ec2-windows] to be installed.
+
+Connetc via RDP to the Windows EC2 instanced for `ada.letuscode.xyz` and create the following users and groups:
+
+`ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* mds
+* kafka
+* kafkarest
+* schemaregistry
+* controlcenter
+* app_geysers
+
+`ou=Groups,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* team_enceladus
+
+Add user `app_geysers` to group `team_enceladus`.
+
+== Deployment
+
+.Create the Kubernetes namespace for this example:
+[source,bash]
+----
+kubectl apply -f namespace.yaml
+----
+
+=== CLIs
+
+.Deploy CLIs:
+[source,bash]
+----
+kubectl apply -f cli
+----
+
+=== ZooKeeper
+
+.Deploy ZooKeeper:
+[source,bash]
+----
+kubectl apply -f cluster/zookeeper.yaml
+----
+
+=== Kafka
+
+.Create the Kubernetes secret for MDS token keypair which is used for token signing:
+[source,bash]
+----
+./create-keys.sh
+./btpl security/mds-token.btpl.yaml | kubectl apply -f -
+----
+
+.Create the Kubernetes secret for MDS LDAP authentication:
+[source,bash]
+----
+export MDS_USERNAME='mds@ada.letuscode.xyz'
+export MDS_PASSWORD='my_mds_password'
+./btpl security/mds-credentials.btpl.yaml | kubectl apply -f -
+----
+
+.Create the Kubernetes secret for Kafka Rest MDS authentication:
+[source,bash]
+----
+export MDS_USERNAME='kafkarest@ada.letuscode.xyz'
+export MDS_PASSWORD='my_kafkarest_password'
+./btpl security/kafkarest-credentials.btpl.yaml | kubectl apply -f -
+----
+
+.Deploy Kafka brokers:
+[source,bash]
+----
+kubectl apply -f cluster/kafka.yaml
+----
+
+=== Schema Registry
+
+.Create the Kubernetes secret for SchemaRegistry MDS authentication:
+[source,bash]
+----
+export SCHEMAREGISTRY_USERNAME='schemaregistry'
+export SCHEMAREGISTRY_PASSWORD='my_schemaregistry_password'
+./btpl security/schemaregistry-credentials.btpl.yaml | kubectl apply -f -
+----
+
+.Deploy Schema Registry:
+[source,bash]
+----
+kubectl apply -f cluster/schemaregistry.yaml
+----
+
+=== Control Center
+
+.Create the Kubernetes secret for Control Center MDS authentication:
+[source,bash]
+----
+export CONTROLCENTER_USERNAME='controlcenter'
+export CONTROLCENTER_PASSWORD='my_conrolcenter_password'
+./btpl security/controlcenter-credentials.btpl.yaml | kubectl apply -f -
+----
+
+.Deploy Control Center:
+[source,bash]
+----
+kubectl apply -f cluster/controlcenter.yaml
+----
+
+.Forward port of Control Center to localhost:
+[source,bash]
+----
+kubectl -n confluent-ldap port-forward service/controlcenter 9021:80
+----
+
+Navigate to http://localhost:9021
+
+=== Undeployment
+
+.Finaly, if you are done with everything, undeploy it:
+[source,bash]
+----
+kubectl delete -f clie
+kubectl delete -f cluster
+kubectl -n confluent-ldap delete secret -l app.kubernetes.io/instance=confluent
+kubectl -n confluent-ldap delete pvc -l app.kubernetes.io/instance=confluent
+kubectl delete -f namespace.yaml
+----
+
+== Verify Kafka AuthN & AuthZ
+
+=== Verify AuthN with LDAP credentials
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `kafka` super user
+[source,bash]
+----
+export KAFKA_USERNAME=kafka
+export KAFKA_PASSWORD='my_kafka_password'
+cat > kafka.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${KAFKA_USERNAME}" \
+    password="${KAFKA_PASSWORD}";
+EOF
+----
+
+.List topics with `kafka` super user
+[source,bash]
+----
+kafka-topics --command-config kafka.config --bootstrap-server kafka:9092 --list
+----
+
+This command will lis tall topics.
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with `app_geysers` user
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has no permissions. Therefore no topics are listed.
+
+=== Create Kafka Role Bindings for Team Group
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `kafka`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+----
+
+.Create Role Bindings for group `team_enceladus`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperManage \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperWrite \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperManage \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+    
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperWrite \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal Group:team_enceladus
+----
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with `app_geysers` user
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has only permissions for topics prefixed with `enceladus_`.
+
+.Create an topic with name `enceladus_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic enceladus_app1 --replication-factor 3 --partitions 3
+----
+
+.Try to create an topic with name `europa_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic europa_app1 --replication-factor 3 --partitions 3
+----
+
+The user `app_geysers` was only able to create the topic with the name `enceladus_app1`.
+
+.Publish a message to topic `enceladus_app1`
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic enceladus_app1 \
+    --producer.config app.config \
+    --property parse.key=false
+----
+
+.Consume a message from topic `enceladus_app1` with consumer group `enceladus_app1_cg`
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic enceladus_app1 \
+    --group enceladus_app1_cg \
+    --consumer.config app.config  \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----
+
+== Verify Schema Registry AuthN & AuthZ
+
+=== Verify AuthN with LDAP credentials
+
+.First exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.Create an topic with name `enceladus_app2_avro`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic enceladus_app2_avro --replication-factor 3 --partitions 3
+----
+
+.Exec into the Kafka Schema Registry Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafkasr-cli -o name) bash
+----
+
+.Send request to Schema Registry without authentication
+[source,bash]
+----
+curl http://schemaregistry/subjects
+----
+
+This request should fail with error `Unauthorized`.
+
+.Send request to Schema Registry with authentication with LDAP user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+curl -u ${APP_USERNAME}:${APP_PASSWORD} http://schemaregistry/subjects
+----
+
+The user should be able to authenticate and an empty list should be returned. 
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.Use the `kafka-avro-console-producer` to register a new schema and publish messages with `app_geysers` user
+[source,bash]
+----
+echo "A:{\"name\":\"Han Solo\",\"age\":30}" | 
+    kafka-avro-console-producer \
+        --bootstrap-server kafka:9092 \
+        --producer.config app.config \
+        --topic enceladus_app2_avro \
+        --sync \
+        --request-required-acks -1 \
+        --message-send-max-retries 3 \
+        --property schema.registry.url=http://schemaregistry \
+        --property basic.auth.credentials.source=USER_INFO \
+        --property basic.auth.user.info=${APP_USERNAME}:${APP_PASSWORD} \
+        --property parse.key=true \
+        --property key.separator=: \
+        --property key.serializer=org.apache.kafka.common.serialization.StringSerializer \
+        --property value.schema="{\"type\":\"record\",\"name\":\"Person\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}"
+----
+
+This request should fail with error message: `User is denied operation Write on Subject: enceladus_app2_avro-value`
+
+Before we can run this command, the user must have write permissions to the corresponding schema registry subject. Therefore, lets first create the required role bindings.
+
+=== Create Schema Registry Role Bindings for Team Group
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `kafka`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+export SCHEMA_REGISTRY_CLUSTER_ID="schemaregistry" # the schema-registry-group-id of the cluster
+----
+
+.Create Role Bindings for group `team_enceladus`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperManage \
+    --resource Subject:enceladus_ \
+    --prefix \
+    --kafka-cluster-id ${CLUSTER_ID}  \
+    --schema-registry-cluster-id ${SCHEMA_REGISTRY_CLUSTER_ID}
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperWrite \
+    --resource Subject:enceladus_ \
+    --prefix \
+    --kafka-cluster-id ${CLUSTER_ID}  \
+    --schema-registry-cluster-id ${SCHEMA_REGISTRY_CLUSTER_ID}
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Subject:enceladus_ \
+    --prefix \
+    --kafka-cluster-id ${CLUSTER_ID}  \
+    --schema-registry-cluster-id ${SCHEMA_REGISTRY_CLUSTER_ID}
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list \
+    --principal Group:team_enceladus \
+    --kafka-cluster-id ${CLUSTER_ID} \
+    --schema-registry-cluster-id ${SCHEMA_REGISTRY_CLUSTER_ID}
+----
+
+For more information about role bindings for schema registry see: https://docs.confluent.io/platform/current/schema-registry/security/rbac-schema-registry.html
+
+.Exec into the Kafka Schema Registry Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=kafkasr-cli -o name) bash
+----
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.Use the `kafka-avro-console-producer` to register a new schema and publish messages with `app_geysers` user
+[source,bash]
+----
+echo "A:{\"name\":\"Han Solo\",\"age\":30}" | 
+    kafka-avro-console-producer \
+        --bootstrap-server kafka:9092 \
+        --producer.config app.config \
+        --topic enceladus_app2_avro \
+        --sync \
+        --request-required-acks -1 \
+        --message-send-max-retries 3 \
+        --property schema.registry.url=http://schemaregistry \
+        --property basic.auth.credentials.source=USER_INFO \
+        --property basic.auth.user.info=${APP_USERNAME}:${APP_PASSWORD} \
+        --property parse.key=true \
+        --property key.separator=: \
+        --property key.serializer=org.apache.kafka.common.serialization.StringSerializer \
+        --property value.schema="{\"type\":\"record\",\"name\":\"Person\",\"fields\":[{\"name\":\"name\",\"type\":\"string\"},{\"name\":\"age\",\"type\":\"int\"}]}"
+----
+
+Now the user is authorized to register a schema for the corresponding topic.
+
+.Use the `kafka-avro-console-consumer` to consume the publish messages with `app_geysers` user
+[source,bash]
+----
+kafka-avro-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --consumer.config app.config \
+    --topic enceladus_app2_avro \
+    --group enceladus_app1_cg \
+    --from-beginning \
+    --max-messages 1 \
+    --property schema.registry.url=http://schemaregistry \
+    --property basic.auth.credentials.source=USER_INFO \
+    --property basic.auth.user.info=${APP_USERNAME}:${APP_PASSWORD} \
+    --property parse.key=true \
+    --property key.separator=: \
+    --property key.serializer=org.apache.kafka.common.serialization.StringSerializer
+----
+
+.You can also request the schema directly from the schema registry via curl.
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+curl -u ${APP_USERNAME}:${APP_PASSWORD} http://schemaregistry/subjects
+curl -u ${APP_USERNAME}:${APP_PASSWORD} http://schemaregistry/subjects/enceladus_app2_avro-value/versions/1/schema
+----

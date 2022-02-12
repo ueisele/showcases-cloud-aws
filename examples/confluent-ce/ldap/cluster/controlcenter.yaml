@@ -1,0 +1,187 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controlcenter
+  namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: controlcenter
+spec:
+  replicas: 1 # Only 1 instance supported!
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: controlcenter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: confluent
+        app.kubernetes.io/name: controlcenter
+    spec:
+      containers:
+      - name: controlcenter
+        image: confluentinc/cp-enterprise-control-center:7.0.1
+        imagePullPolicy: IfNotPresent
+        ports:
+          - name: cc-http
+            containerPort: 9021
+            protocol: TCP
+        resources:
+          limits:
+            cpu: 800m
+            memory: 896Mi
+          requests:
+            cpu: 800m
+            memory: 896Mi
+        env:
+        # https://docs.confluent.io/platform/current/control-center/installation/configuration.html
+        #### JVM Options ####
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xms768M -Xmx768M"
+        #### Config Provider ####
+        - name: CONFIG_PROVIDERS
+          value: securepass
+        - name: CONFIG_PROVIDERS_SECUREPASS_CLASS
+          value: org.apache.kafka.common.config.provider.FileConfigProvider
+        #### Control Center ####
+        - name: CONTROL_CENTER_BOOTSTRAP_SERVERS
+          value: kafka:9073
+        - name: CONTROL_CENTER_REPLICATION_FACTOR
+          value: "3"
+        - name: CONTROL_CENTER_INTERNAL_TOPICS_PARTITIONS
+          value: "3"
+        - name: CONTROL_CENTER_ID
+          value: "1"
+        - name: CONTROL_CENTER_NAME
+          value: "controlcenter"
+        - name: CONTROL_CENTER_DATA_DIR
+          value: /mnt/data
+        #### Dependencies ####
+        - name: CONTROL_CENTER_ZOOKEEPER_CONNECT
+          value: zookeeper:2181
+        - name: CONTROL_CENTER_SCHEMA_REGISTRY_ENABLE
+          value: "true"
+        - name: CONTROL_CENTER_SCHEMA_REGISTRY_URL
+          value: http://schemaregistry
+        #### Listeners ####
+        - name: CONTROL_CENTER_REST_LISTENERS
+          value: http://0.0.0.0:9021
+        - name: CONTROL_CENTER_REST_AUTHENTICATION_METHOD
+          value: BEARER
+        #### Streams ####
+        - name: CONTROL_CENTER_STREAMS_CPREST_URL
+          value: http://kafka:8090
+        - name: CONTROL_CENTER_STREAMS_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
+        - name: CONTROL_CENTER_STREAMS_SASL_MECHANISM
+          value: OAUTHBEARER
+        - name: CONTROL_CENTER_STREAMS_SASL_JAAS_CONFIG
+          value: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required metadataServerUrls="http://kafka:8090" username="${securepass:/mnt/secrets/controlcenter-credentials/credentials.properties:username}" password="${securepass:/mnt/secrets/controlcenter-credentials/credentials.properties:password}";
+        #### MDS ####
+        - name: CONFLUENT_METADATA_BOOTSTRAP_SERVER_URLS
+          value: http://kafka:8090
+        - name: CONFLUENT_METADATA_BASIC_AUTH_USER_INFO
+          value: ${securepass:/mnt/secrets/controlcenter-credentials/credentials.properties:username}:${securepass:/mnt/secrets/controlcenter-credentials/credentials.properties:password}
+        - name: PUBLIC_KEY_PATH
+          value: /mnt/secrets/mds-token/mdsPublicKey.pem
+        # Confluent ensure script does not work with OAUTHBEARER (bug?)
+        command:
+        - sh
+        - -exc
+        - |
+          /etc/confluent/docker/configure && \
+          exec /etc/confluent/docker/launch
+        volumeMounts:
+        - name: mds-token
+          mountPath: /mnt/secrets/mds-token
+          readOnly: true
+        - name: controlcenter-credentials
+          mountPath: /mnt/secrets/controlcenter-credentials
+          readOnly: true
+        - name: datadir
+          mountPath: /mnt/data
+      volumes:
+      - name: mds-token
+        secret:
+          secretName: mds-token
+      - name: controlcenter-credentials
+        secret:
+          secretName: controlcenter-credentials
+      - name: datadir
+        persistentVolumeClaim:
+          claimName: controlcenter-data
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/os"
+                operator: "In"
+                values: ["linux"]
+              - key: "kubernetes.io/arch"
+                operator: "In"
+                values: ["amd64"]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["controlcenter"]
+              topologyKey: "kubernetes.io/hostname"
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["controlcenter"]
+              topologyKey: "topology.kubernetes.io/zone"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: controlcenter-data
+  namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: controlcenter
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: controlcenter
+  namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: controlcenter
+spec:
+  ports:
+  - name: cc-http
+    port: 80
+    targetPort: cc-http
+    protocol: TCP
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: controlcenter

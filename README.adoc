@@ -16,9 +16,10 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastru
   ** link:examples/kubernetes/dns[Demonstrate DNS capability of the cluster]
   ** link:examples/kubernetes/storage[Examples which demonstrate persistence]
   ** link:examples/kubernetes/external-access[Examples which demonstrate how to provide external access]
-* link:examples/confluent[Confluent]
-  ** link:examples/confluent/simple[Simple Kafka Deployment for Docker Compose and Kubernetes]
-  ** link:examples/confluent/ldap[Confluent AuthN and AuthZ with AD and RBAC]
+* link:examples/confluent-ce[Confluent Enterprise]
+  ** link:examples/confluent-ce/ldap[Confluent AuthN and AuthZ with AD and RBAC]
+* link:examples/confluent-ccs[Confluent Community]
+  ** link:examples/confluent-ccs/simple[Simple Kafka Deployment for Docker Compose and Kubernetes]
 
 == Prerequisites
 
@@ -100,6 +101,7 @@ terraform apply --var "profile=${SHOWCASE_AWS_PROFILE}"
 === Access
 
 * VPN Server for secure access
+* Public access for Confluent Platform
 
 === Resource Usage
 

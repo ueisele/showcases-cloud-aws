@@ -1,0 +1,180 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schemaregistry
+  namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: schemaregistry
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: schemaregistry
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: confluent
+        app.kubernetes.io/name: schemaregistry
+    spec:
+      containers:
+      - name: schemaregistry-server
+        image: confluentinc/cp-schema-registry:7.0.1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: sr-http
+          containerPort: 8081
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 400m
+            memory: 576Mi
+          requests:
+            cpu: 200m
+            memory: 576Mi
+        env:
+        # https://docs.confluent.io/platform/current/installation/docker/config-reference.html
+        # https://docs.confluent.io/platform/current/schema-registry/installation/config.html
+        #### JVM Options ####
+        - name: SCHEMA_REGISTRY_HEAP_OPTS
+          value: "-Xms448M -Xmx448M"
+        #### Listener ####
+        - name: SCHEMA_REGISTRY_LISTENERS
+          value: http://0.0.0.0:8081
+        #### Multi Node ####
+        # https://docs.confluent.io/platform/current/schema-registry/index.html#schemaregistry-single-master
+        - name: SCHEMA_REGISTRY_HOST_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: SCHEMA_REGISTRY_MASTER_ELIGIBILITY
+          value: "true"
+        #### Kafka Store ####
+        - name: SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS
+          value: PLAINTEXT://kafka:9071
+        - name: SCHEMA_REGISTRY_KAFKASTORE_GROUP_ID
+          value: schemaregistry
+        #### Compatibility ####
+        - name: SCHEMA_REGISTRY_SCHEMA_COMPATIBILITY_LEVEL
+          value: full_transitive
+        #### Config Provider ####
+        - name: SCHEMA_REGISTRY_CONFIG_PROVIDERS
+          value: file
+        - name: SCHEMA_REGISTRY_CONFIG_PROVIDERS_FILE_CLASS
+          value: org.apache.kafka.common.config.provider.FileConfigProvider
+        #### RBAC ####
+        # https://docs.confluent.io/platform/current/schema-registry/security/rbac-schema-registry.html
+        # These properties install the Schema Registry security plugin, and configure it to use |rbac| for
+        # authorization and OAuth for authentication
+        - name: SCHEMA_REGISTRY_SCHEMA_REGISTRY_RESOURCE_EXTENSION_CLASS
+          value: io.confluent.kafka.schemaregistry.security.SchemaRegistrySecurityResourceExtension
+        - name: SCHEMA_REGISTRY_CONFLUENT_SCHEMA_REGISTRY_AUTHORIZER_CLASS
+          value: io.confluent.kafka.schemaregistry.security.authorizer.rbac.RbacAuthorizer
+        - name: SCHEMA_REGISTRY_REST_SERVLET_INITIALIZOR_CLASSES
+          value: io.confluent.common.security.jetty.initializer.InstallBearerOrBasicSecurityHandler
+        - name: SCHEMA_REGISTRY_CONFLUENT_SCHEMA_REGISTRY_AUTH_MECHANISM
+          value: JETTY_AUTH
+        # Tell Schema Registry how to communicate with the Kafka cluster running the Metadata Service (MDS) 
+        # and how to authenticate requests using a public key
+        - name: SCHEMA_REGISTRY_CONFLUENT_METADATA_BOOTSTRAP_SERVER_URLS
+          value: http://kafka:8090
+        - name: SCHEMA_REGISTRY_SCHEMA_REGISTRY_GROUP_ID
+          value: schemaregistry
+        - name: SCHEMA_REGISTRY_CONFLUENT_METADATA_BASIC_AUTH_USER_INFO
+          value: ${file:/mnt/secrets/schemaregistry-credentials/credentials.properties:username}:${file:/mnt/secrets/schemaregistry-credentials/credentials.properties:password}
+        - name: SCHEMA_REGISTRY_CONFLUENT_METADATA_HTTP_AUTH_CREDENTIALS_PROVIDER
+          value: BASIC
+        - name: SCHEMA_REGISTRY_PUBLIC_KEY_PATH
+          value: /mnt/secrets/mds-token/mdsPublicKey.pem
+        - name: SCHEMA_REGISTRY_CONFLUENT_METADATA_SERVER_ENABLE_SERVER_URLS_REFRESH
+          value: "false"
+        volumeMounts:
+        - name: mds-token
+          mountPath: /mnt/secrets/mds-token
+          readOnly: true
+        - name: schemaregistry-credentials
+          mountPath: /mnt/secrets/schemaregistry-credentials
+          readOnly: true
+      volumes:
+      - name: mds-token
+        secret:
+          secretName: mds-token
+      - name: schemaregistry-credentials
+        secret:
+          secretName: schemaregistry-credentials
+      enableServiceLinks: false
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/os"
+                operator: "In"
+                values: ["linux"]
+              - key: "kubernetes.io/arch"
+                operator: "In"
+                values: ["amd64"]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["schemaregistry"]
+              topologyKey: "kubernetes.io/hostname"
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["schemaregistry"]
+              topologyKey: "topology.kubernetes.io/zone"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: schemaregistry
+  namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: schemaregistry
+spec:
+  type: ClusterIP
+  ports:
+  - name: sr-http
+    port: 80
+    targetPort: sr-http
+    protocol: TCP
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: schemaregistry
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: schemaregistry
+  namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: schemaregistry
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: schemaregistry
+  maxUnavailable: 1

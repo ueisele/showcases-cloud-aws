@@ -4,6 +4,8 @@ kind: Secret
 metadata:
   name: mds-token
   namespace: confluent-ldap
+  labels:
+    app.kubernetes.io/instance: confluent
 type: Opaque
 data:
   mdsPublicKey.pem: $(cat keypair/public.pem | base64 -w0)
