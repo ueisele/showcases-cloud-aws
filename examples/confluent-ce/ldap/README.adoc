@@ -550,3 +550,61 @@ export APP_PASSWORD='my_app_password'
 curl -u ${APP_USERNAME}:${APP_PASSWORD} http://schemaregistry/subjects
 curl -u ${APP_USERNAME}:${APP_PASSWORD} http://schemaregistry/subjects/enceladus_app2_avro-value/versions/1/schema
 ----
+
+== Verify Control Center AuthN & AuthZ
+
+=== Verify AuthN with LDAP credentials
+
+Navigate to http://localhost:9021
+
+Now login with user `app_geysers`. This should work and you should be able to see all rescources like topics and schemas for which corresponding role bindinges exists for its group.
+
+Next, try login with user `kafka`, which is a Kafka super user. This has been defined by starting Kafka with the following environment variable.
+
+[source,yaml]
+----
+env:
+- name: KAFKA_SUPER_USERS
+  value: User:admin;User:kafka;User:kafkarest;User:schemaregistry;User:controlcenter;User:ANONYMOUS
+----
+
+However, you will recognize that you have not even the permission to see the Kafka cluster itself. The reason for this is, that Control Center soley is based on RBAC for access controll. Therefore, in order to be able to manage all resources via Control Center, you must create the corresponding role bindings.
+
+=== Create Role Bindings for kafka user
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldap exec -it $(kubectl -n confluent-ldap get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `kafka`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+export SCHEMA_REGISTRY_CLUSTER_ID="schemaregistry" # the schema-registry-group-id of the cluster
+----
+
+.Create Role Bindings for user `kafka`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal User:kafka \
+    --role SystemAdmin \
+    --kafka-cluster-id ${CLUSTER_ID}
+
+confluent iam rbac role-binding create \
+    --principal User:kafka \
+    --role SystemAdmin \
+    --kafka-cluster-id ${CLUSTER_ID}  \
+    --schema-registry-cluster-id ${SCHEMA_REGISTRY_CLUSTER_ID}
+----
+
+Navigate again to http://localhost:9021 and login with user `kafka`. Now you are able to view an manage any resource which exists in the Confluent Platform cluster.
