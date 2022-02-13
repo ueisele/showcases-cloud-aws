@@ -71,8 +71,8 @@ export MDS_PASSWORD='my_mds_password'
 .Create the Kubernetes secret for Kafka Rest MDS authentication:
 [source,bash]
 ----
-export MDS_USERNAME='kafkarest@ada.letuscode.xyz'
-export MDS_PASSWORD='my_kafkarest_password'
+export KAFKAREST_USERNAME='kafkarest@ada.letuscode.xyz'
+export KAFKAREST_PASSWORD='my_kafkarest_password'
 ./btpl security/kafkarest-credentials.btpl.yaml | kubectl apply -f -
 ----
 
