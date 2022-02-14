@@ -1,0 +1,475 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: kafka
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: kafka
+  serviceName: kafka-headless
+  podManagementPolicy: OrderedReady
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: confluent
+        app.kubernetes.io/name: kafka
+    spec:
+      ## required to fix reverse lookup issue with Kerberos
+      #hostAliases:
+      #- ip: "10.0.3.119"
+      #  hostnames: ["win-hljpgj485cu.ada.letuscode.xyz"]
+      #- ip: "10.0.4.52"
+      #  hostnames: ["win-s7kcc3309rm.ada.letuscode.xyz"]
+      #- ip: "10.0.4.51"
+      #  hostnames: ["win-oeiehoimr43.com.codelabs.dev"]
+      #- ip: "10.0.3.202"
+      #  hostnames: ["win-i4nq6d8gegm.com.codelabs.dev"]
+      containers:
+      - name: wireshark
+        image: ueisele/wireshark:3.6.1
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 850m
+            memory: 1300Mi
+          requests:
+            cpu: 750m
+            memory: 1300Mi
+        ports:
+          - containerPort: 14500
+            name: https-wireshark
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW"]
+      - name: kafka-broker
+        image: "confluentinc/cp-server:7.0.1"
+        imagePullPolicy: "IfNotPresent"
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        ports:
+        - containerPort: 9092
+          name: kafka-ext
+        - containerPort: 9071
+          name: kafka-int
+        - containerPort: 9072
+          name: kafka-rep
+        - containerPort: 9073
+          name: kafka-tok
+        - containerPort: 8090
+          name: http-mds
+        resources:
+          limits:
+            cpu: 850m
+            memory: 1152Mi
+          requests:
+            cpu: 750m
+            memory: 1152Mi
+        env:
+        #### K8S Env Varaibles ####
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        #### JVM Options ####
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xms640M -Xmx640M"
+        - name: KAFKA_OPTS
+          value: -Djava.security.auth.login.config=/mnt/kafka-jaas/jaas.conf -Dsun.security.krb5.debug=true
+        #### LOGGING ####
+        - name: KAFKA_LOG4J_LOGGERS
+          value: "kafka.authorizer.logger=INFO,io.confluent.security.auth.provider.ldap=DEBUG"
+        - name: KAFKA_LOG4J_ROOT_LOGLEVEL
+          value: INFO
+        #### Config Provider ####
+        - name: KAFKA_CONFIG_PROVIDERS
+          value: file
+        - name: KAFKA_CONFIG_PROVIDERS_FILE_CLASS
+          value: org.apache.kafka.common.config.provider.FileConfigProvider
+        #### Zookeeper ####
+        - name: KAFKA_ZOOKEEPER_CONNECT
+          value: zookeeper:2181
+        #### Storage ####
+        - name: KAFKA_LOG_DIRS
+          value: /var/lib/kafka/data
+        #### Listeners ####
+        - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+          value: EXTERNAL:SASL_PLAINTEXT,INTERNAL:PLAINTEXT,REPLICATION:PLAINTEXT,TOKEN:SASL_PLAINTEXT
+        - name: KAFKA_SASL_ENABLED_MECHANISMS
+          value: PLAIN
+        #### Replication ####
+        - name: KAFKA_INTER_BROKER_LISTENER_NAME
+          value: REPLICATION
+        #### External Listener ####
+        - name: KAFKA_LISTENER_NAME_EXTERNAL_SASL_ENABLED_MECHANISMS
+          value: PLAIN
+        - name: KAFKA_LISTENER_NAME_EXTERNAL_SASL_MECHANISMS
+          value: PLAIN
+        - name: KAFKA_LISTENER_NAME_EXTERNAL_PLAIN_SASL_JAAS_CONFIG
+          value: "org.apache.kafka.common.security.plain.PlainLoginModule required;"
+        - name: KAFKA_LISTENER_NAME_EXTERNAL_PLAIN_SASL_SERVER_CALLBACK_HANDLER_CLASS
+          value: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
+        #### Token Listener (MDS) ####
+        # https://docs.confluent.io/platform/current/kafka/configure-mds/index.html#configure-the-token-listener
+        # Required for Control Center
+        - name: KAFKA_LISTENER_NAME_TOKEN_OAUTHBEARER_SASL_LOGIN_CALLBACK_HANDLER_CLASS
+          value: io.confluent.kafka.server.plugins.auth.token.TokenBearerServerLoginCallbackHandler
+        - name: KAFKA_LISTENER_NAME_TOKEN_OAUTHBEARER_SASL_SERVER_CALLBACK_HANDLER_CLASS
+          value: io.confluent.kafka.server.plugins.auth.token.TokenBearerValidatorCallbackHandler
+        - name: KAFKA_LISTENER_NAME_TOKEN_OAUTHBEARER_SASL_JAAS_CONFIG
+          value: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required publicKeyPath="/mnt/secrets/mds-token/mdsPublicKey.pem";
+        - name: KAFKA_LISTENER_NAME_TOKEN_SASL_ENABLED_MECHANISMS
+          value: OAUTHBEARER
+        - name: KAFKA_LISTENER_NAME_TOKEN_SASL_MECHANISMS
+          value: PLAIN
+        #### Authorization ####
+        - name: KAFKA_SUPER_USERS
+          value: User:admin;User:kafka;User:kafkarest;User:schemaregistry;User:controlcenter;User:ANONYMOUS
+        - name: KAFKA_AUTHORIZER_CLASS_NAME
+          value: io.confluent.kafka.security.authorizer.ConfluentServerAuthorizer
+        - name: KAFKA_CONFLUENT_AUTHORIZER_ACCESS_RULE_PROVIDERS
+          value: CONFLUENT
+        #### MDS ####
+        # https://docs.confluent.io/platform/current/kafka/configure-mds/index.html
+        - name: KAFKA_CONFLUENT_METADATA_SERVER_LISTENERS
+          value: http://0.0.0.0:8090
+        - name: KAFKA_CONFLUENT_METADATA_SERVER_AUTHENTICATION_METHOD
+          value: BEARER
+        - name: KAFKA_CONFLUENT_METADATA_SERVER_TOKEN_KEY_PATH
+          value: /mnt/secrets/mds-token/mdsTokenKeyPair.pem
+        #### MDS Ldap (Kerberos Auth) ####
+        # https://docs.confluent.io/platform/current/security/ldap-authorization/configuration.html#configuring-gssapi-for-ldap
+        # Configure MDS to talk to AD/LDAP
+        # The ldap server name must be an actual domain controler.
+        # ada.letuscode.xyz resolves to both controllers, however is not known by Kerberos.
+        # The question still is, how ada.letuscode.xyz can be used to achieve HA. Maybe by adding and SPN or envore reverse DNS lookup?
+        - name: KAFKA_LDAP_JAVA_NAMING_PROVIDER_URL
+          value: ldap://win-hljpgj485cu.ada.letuscode.xyz:389
+        # Authenticate to LDAP
+        - name: KAFKA_LDAP_JAVA_NAMING_SECURITY_AUTHENTICATION
+          value: GSSAPI
+        - name: KAFKA_LDAP_JAVA_NAMING_SECURITY_PRINCIPAL
+          value: mds@ADA.LETUSCODE.XYZ
+        #- name: KAFKA_LDAP_SASL_JAAS_CONFIG
+        #  value: |- 
+        #    com.sun.security.auth.module.Krb5LoginModule required \
+        #      keyTab="/mnt/secrets/mds-keytab/mds.ada.letuscode.xyz.keytab" \
+        #      principal="mds@ADA.LETUSCODE.XYZ" \
+        #      storeKey="true" \
+        #      useKeyTab="true";
+        # Locate LDAP users and groups
+        - name: KAFKA_LDAP_USER_SEARCH_BASE
+          value: ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz
+        - name: KAFKA_LDAP_USER_NAME_ATTRIBUTE
+          value: sAMAccountName
+        - name: KAFKA_LDAP_USER_OBJECT_CLASS
+          value: user
+        - name: KAFKA_LDAP_SEARCH_MODE
+          value: GROUPS
+        - name: KAFKA_LDAP_GROUP_SEARCH_BASE
+          value: ou=Groups,ou=ada,dc=ada,dc=letuscode,dc=xyz
+        - name: KAFKA_LDAP_GROUP_NAME_ATTRIBUTE
+          value: sAMAccountName
+        - name: KAFKA_LDAP_GROUP_OBJECT_CLASS
+          value: group
+        - name: KAFKA_LDAP_GROUP_MEMBER_ATTRIBUTE
+          value: member
+        - name: KAFKA_LDAP_GROUP_MEMBER_ATTRIBUTE_PATTERN
+          value: CN=(.*),OU=Users,OU=ada,DC=ada,DC=letuscode,DC=xyz
+        #### Kafka Rest ####
+        # https://docs.confluent.io/platform/current/kafka-rest/production-deployment/confluent-server/security.html
+        # Required for Control Center
+        - name: KAFKA_KAFKA_REST_ENABLE
+          value: "true"
+        - name: KAFKA_KAFKA_REST_BOOTSTRAP_SERVER
+          value: kafka:9073
+        - name: KAFKA_KAFKA_REST_KAFKA_REST_RESOURCE_EXTENSION_CLASS
+          value: io.confluent.kafkarest.security.KafkaRestSecurityResourceExtension
+        - name: KAFKA_KAFKA_REST_SERVLET_INITIALIZOR_CLASSES
+          value: io.confluent.common.security.jetty.initializer.InstallBearerOrBasicSecurityHandler
+        - name: KAFKA_KAFKA_REST_PUBLIC_KEY_PATH
+          value: /mnt/secrets/mds-token/mdsPublicKey.pem
+        - name: KAFKA_KAFKA_REST_CLIENT_SASL_JAAS_CONFIG
+          value: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required metadataServerUrls="http://kafka:8090" username="${file:/mnt/secrets/kafkarest-credentials/credentials.properties:username}" password="${file:/mnt/secrets/kafkarest-credentials/credentials.properties:password}";
+        - name: KAFKA_KAFKA_REST_CLIENT_SASL_MECHANISM
+          value: OAUTHBEARER
+        - name: KAFKA_KAFKA_REST_CLIENT_SECURITY_PROTOCOL
+          value: SASL_PLAINTEXT
+        - name: KAFKA_KAFKA_REST_CONFLUENT_METADATA_BOOTSTRAP_SERVER_URLS
+          value: http://kafka:8090
+        - name: KAFKA_KAFKA_REST_CONFLUENT_METADATA_BASIC_AUTH_USER_INFO
+          value: ${file:/mnt/secrets/kafkarest-credentials/credentials.properties:username}:${file:/mnt/secrets/kafkarest-credentials/credentials.properties:password}
+        - name: KAFKA_KAFKA_REST_CONFLUENT_METADATA_HTTP_AUTH_CREDENTIALS_PROVIDER
+          value: BASIC
+        #### Defaults ####
+        - name: KAFKA_DEFAULT_REPLICATION_FACTOR
+          value: "3"
+        - name: KAFKA_NUM_PARTITIONS
+          value: "3"
+        #### Metrics ####
+        # https://docs.confluent.io/platform/current/kafka/metrics-reporter.html
+        - name: KAFKA_METRIC_REPORTERS
+          value: "io.confluent.metrics.reporter.ConfluentMetricsReporter"
+        - name: CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS
+          value: kafka:9071
+        - name: CONFLUENT_METRICS_REPORTER_TOPIC_PARTITIONS
+          value: "3"
+        #### Self Balancing ####
+        # https://docs.confluent.io/platform/current/kafka/sbc/configuration_options.html#
+        - name: KAFKA_CONFLUENT_BALANCER_ENABLE
+          value: "false"        
+        #### Telemetry ####
+        # https://docs.confluent.io/platform/current/health-plus/telemetry.html#telemetry-reporter
+        - name: KAFKA_CONFLUENT_REPORTERS_TELEMETRY_AUTO_ENABLE
+          value: "false"
+        - name: KAFKA_CONFLUENT_TELEMETRY_ENABLED
+          value: "false"
+        command:
+        - sh
+        - -exc
+        - |
+          export KAFKA_BROKER_ID=${HOSTNAME##*-} && \
+          export KAFKA_ADVERTISED_LISTENERS=EXTERNAL://${POD_NAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:9092,INTERNAL://${POD_NAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:9071,REPLICATION://${POD_NAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:9072,TOKEN://${POD_NAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:9073 && \
+          export KAFKA_CONFLUENT_METADATA_SERVER_ADVERTISED_LISTENERS=http://${POD_NAME}.kafka-headless.${POD_NAMESPACE}.svc.cluster.local:8090 && \
+          /etc/confluent/docker/configure && \
+          exec /etc/confluent/docker/launch
+        #exec /etc/confluent/docker/run
+        volumeMounts:
+        - name: krb5
+          mountPath: /etc/krb5.conf
+          subPath: krb5.conf
+        - name: jaas
+          mountPath: /mnt/kafka-jaas
+        - name: mds-keytab
+          mountPath: /mnt/secrets/mds-keytab
+          readOnly: true
+        - name: mds-token
+          mountPath: /mnt/secrets/mds-token
+          readOnly: true
+        - name: kafkarest-credentials
+          mountPath: /mnt/secrets/kafkarest-credentials
+          readOnly: true
+        - name: datadir
+          mountPath: /var/lib/kafka
+      volumes:
+      - name: krb5
+        configMap:
+          name: kafka-krb5
+      - name: jaas
+        configMap:
+          name: kafka-jaas
+      - name: mds-keytab
+        secret:
+          secretName: mds-keytab
+      - name: mds-token
+        secret:
+          secretName: mds-token
+      - name: kafkarest-credentials
+        secret:
+          secretName: kafkarest-credentials
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/os"
+                operator: "In"
+                values: ["linux"]
+              - key: "kubernetes.io/arch"
+                operator: "In"
+                values: ["amd64"]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["kafka"]
+              topologyKey: "kubernetes.io/hostname"
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["kafka"]
+              topologyKey: "topology.kubernetes.io/zone"
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: "20Gi"
+      storageClassName: "gp3"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-krb5
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+data:
+  krb5.conf: |
+    [libdefaults]
+            default_realm = ADA.LETUSCODE.XYZ
+            rdns = false
+            
+            kdc_timesync = 0
+            ccache_type = 4
+            forwardable = true
+            proxiable = true
+
+    [realms]
+            ADA.LETUSCODE.XYZ = {
+                    kdc = win-hljpgj485cu.ada.letuscode.xyz
+                    kdc = win-s7kcc3309rm.ada.letuscode.xyz
+                    #kdc = ada.letuscode.xyz
+                    admin_server = win-hljpgj485cu.ada.letuscode.xyz
+                    admin_server = win-s7kcc3309rm.ada.letuscode.xyz
+                    #admin_server = ada.letuscode.xyz
+                    default_domain = ada.letuscode.xyz
+            }
+            COM.CODELABS.DEV = {
+                    kdc = win-oeiehoimr43.com.codelabs.dev
+                    kdc = win-i4nq6d8gegm.com.codelabs.dev
+                    #kdc = com.codelabs.dev
+                    admin_server = win-oeiehoimr43.com.codelabs.dev
+                    admin_server = win-i4nq6d8gegm.com.codelabs.dev
+                    #admin_server = com.codelabs.dev
+                    default_domain = com.codelabs.dev
+            }
+
+    [domain_realm]
+            .ada.letuscode.xyz = ADA.LETUSCODE.XYZ
+            ada.letuscode.xyz = ADA.LETUSCODE.XYZ
+            .com.codelabs.dev = COM.CODELABS.DEV
+            com.codelabs.dev = COM.CODELABS.DEV
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-jaas
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+data:
+  jaas.conf: |
+    ldap.KafkaServer {
+      com.sun.security.auth.module.Krb5LoginModule required
+        keyTab="/mnt/secrets/mds-keytab/mds.ada.letuscode.xyz.keytab"
+        principal="mds@ADA.LETUSCODE.XYZ"
+        storeKey="true"
+        useKeyTab="true";
+    };
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+spec:
+  ports:
+  - port: 9092
+    name: kafka-ext
+  - port: 9071
+    name: kafka-int
+  - port: 9072
+    name: kafka-rep
+  - port: 9073
+    name: kafka-tok
+  - port: 8090
+    name: mds-http
+  clusterIP: None
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9092
+    name: kafka-ext
+  - port: 9071
+    name: kafka-int
+  - port: 9072
+    name: kafka-rep
+  - port: 9073
+    name: kafka-tok
+  - port: 8090
+    name: mds-http
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: kafka
+  maxUnavailable: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-wireshark
+  namespace: confluent-kerberos
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka
+spec:
+  ports:
+    - name: https
+      port: 443
+      targetPort: https-wireshark
+      protocol: TCP
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: kafka

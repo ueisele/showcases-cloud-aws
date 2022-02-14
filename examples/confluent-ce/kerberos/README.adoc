@@ -1,0 +1,379 @@
+= Confluent Platform with Kerberos AuthZ and AuthZ
+
+The goal of the example is to demonstrate authentication and authorization with Kerberos and RBAC on the external listener. Confluent will be connected to an AD with domain `ada.letuscode.xyz` and uses this as identity provider. Which permissions a user has is defined in Confluent MDS based on role bindings to groups.
+
+*HINT*: This example is based on the link:../ldap[ldap] example.
+
+*IMPORTANT*: This example requires the Confluent Enterprise edition, because RBAC and LDAP authentication are not suppored by the Open Source edition.
+
+*NOTE*: The Kubernetes manifests are based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts].
+
+== Prerequisites
+
+This example requires link:../../../infrastructure/ldap[infrastructure/ldap] and link:../../../infrastructure/ec2-windows[infrastructure/ec2-windows] to be installed.
+
+Connetc via RDP to the Windows EC2 instanced for `ada.letuscode.xyz` and create the following users and groups:
+
+`ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* mds
+* kafka
+* kafkarest
+* app_geysers
+
+`ou=Groups,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* team_enceladus
+
+Add user `app_geysers` to group `team_enceladus`.
+
+== Deployment
+
+.Create the Kubernetes namespace for this example:
+[source,bash]
+----
+kubectl apply -f namespace.yaml
+----
+
+=== CLIs
+
+.Deploy CLIs:
+[source,bash]
+----
+kubectl apply -f cli
+----
+
+=== ZooKeeper
+
+.Deploy ZooKeeper:
+[source,bash]
+----
+kubectl apply -f cluster/zookeeper.yaml
+----
+
+=== Kafka
+
+Before Kafka can be deployed, additional manual steps are required.
+
+* Creation of Kerberos keytab file to allow MDS to authenticate with LDAP without password
+* Creation of keypair for MDS for token signing
+* Creation of credentials for Kafka Rest to authenticate with MDS
+
+==== Create Kerberos Keytab File for MDS
+
+The link:https://docs.oracle.com/cd/E19683-01/806-4078/6jd6cjs1l/index.html[keytab] is a local file that stores the principal for LDAP, as well as a timestamp, a key version number, and the encrypted keys. In this context, keyTab is used to authenticate Kerberos with the LDAP server without having to explicitly enter a password. 
+
+For more information have a look at the Confluent documentation about link:https://docs.confluent.io/platform/current/security/ldap-authorization/configuration.html#configuring-gssapi-for-ldap[Configuring GSSAPI for LDAP].
+The following excerpt shows the Kafka MDS configuration which references th keytab file.
+
+[source,properties]
+----
+# Configure SASL/GSSAPI as the authentication protocol for LDAP context.
+ldap.java.naming.security.authentication=GSSAPI
+# Security principal for LDAP context
+ldap.java.naming.security.principal=mds@ADA.LETUSCODE.XYZ
+# JAAS configuration for Kerberos authentication with LDAP server
+ldap.sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required \
+  keyTab="/mnt/secrets/mds-keytab/mds.ada.letuscode.xyz.keytab" \
+  principal="mds@ADA.LETUSCODE.XYZ" \
+  storeKey="true" \
+  useKeyTab="true";
+----
+
+Now lets create the Kerberos keytab file.
+
+.Exec into the LDAP Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli -o name) bash
+----
+
+From the command line type `ktutil` to launch the utility.
+
+.Type the following command to add `mds` user to the keytab.
+[source,bash]
+----
+addent -password -p mds -k 1 -e RC4-HMAC
+----
+
+When prompted, enter the password for the Kerberos principal user. 
+
+.Type the following command to create a keytab.
+[source,bash]
+----
+wkt /tmp/mds.ada.letuscode.xyz.keytab
+----
+
+Finally, type `q` tp quit the ktutil utility.
+
+.You can view the principal in the keytab using the klist command.
+[source,bash]
+----
+klist -kt /tmp/mds.ada.letuscode.xyz.keytab
+----
+
+.Now check if you can authenticate with the keytab file
+[source,bash]
+----
+export KRB5CCNAME=/tmp/mds.ada.letuscode.xyz.cc.tmp
+kinit mds@ADA.LETUSCODE.XYZ -kt /tmp/mds.ada.letuscode.xyz.keytab -c ${KRB5CCNAME}
+----
+
+If you type `klist` it should print an output similar to this:
+
+----
+Ticket cache: FILE:/tmp/mds.ada.letuscode.xyz.cc.tmp
+Default principal: mds@ADA.LETUSCODE.XYZ
+
+Valid starting     Expires            Service principal
+02/13/22 18:13:45  02/14/22 04:13:45  krbtgt/ADA.LETUSCODE.XYZ@ADA.LETUSCODE.XYZ
+----
+
+.Copy the keytab file to your local machine.
+[source,bash]
+----
+mkdir -p security/keytab
+kubectl -n confluent-kerberos cp $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli --template '{{range .items}}{{.metadata.name}}{{end}}'):/tmp/mds.ada.letuscode.xyz.keytab security/keytab/mds.ada.letuscode.xyz.keytab
+----
+
+.Create a Kubernetes secret with the keytab file
+[source,bash]
+----
+kubectl create secret generic mds-keytab \
+    --from-file=mds.ada.letuscode.xyz.keytab=security/keytab/mds.ada.letuscode.xyz.keytab \
+    --namespace confluent-kerberos
+kubectl -n confluent-kerberos label secret mds-keytab app.kubernetes.io/instance=confluent
+----
+
+==== Create MDS Keypair
+
+.Create the Kubernetes secret with a keypair which will be used by MDS for token signing.
+[source,bash]
+----
+./create-keys.sh
+./btpl security/mds-token.btpl.yaml | kubectl apply -f -
+----
+
+==== Create Credentials for Kafka Rest
+
+.Create the Kubernetes secret for Kafka Rest MDS authentication.
+[source,bash]
+----
+export KAFKAREST_USERNAME='kafkarest@ada.letuscode.xyz'
+export KAFKAREST_PASSWORD='my_kafkarest_password'
+./btpl security/kafkarest-credentials.btpl.yaml | kubectl apply -f -
+----
+
+==== Deploy Kafka
+
+.Deploy Kafka brokers:
+[source,bash]
+----
+kubectl apply -f cluster/kafka.yaml
+----
+
+=== Undeployment
+
+.Finaly, if you are done with everything, undeploy it:
+[source,bash]
+----
+kubectl delete -f clie
+kubectl delete -f cluster
+kubectl -n confluent-kerberos delete secret -l app.kubernetes.io/instance=confluent
+kubectl -n confluent-kerberos delete pvc -l app.kubernetes.io/instance=confluent
+kubectl delete -f namespace.yaml
+----
+
+== Verify Kafka AuthN & AuthZ
+
+=== Verify AuthN with LDAP credentials
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `kafka` super user
+[source,bash]
+----
+export KAFKA_USERNAME=kafka
+export KAFKA_PASSWORD='my_kafka_password'
+cat > kafka.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${KAFKA_USERNAME}" \
+    password="${KAFKA_PASSWORD}";
+EOF
+----
+
+.List topics with `kafka` super user
+[source,bash]
+----
+kafka-topics --command-config kafka.config --bootstrap-server kafka:9092 --list
+----
+
+This command will lis tall topics.
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with `app_geysers` user
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has no permissions. Therefore no topics are listed.
+
+=== Create Kafka Role Bindings for Team Group
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `kafka`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+----
+
+.Create Role Bindings for group `team_enceladus`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperManage \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperWrite \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperManage \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+    
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperRead \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:team_enceladus \
+    --role DeveloperWrite \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal Group:team_enceladus
+----
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `app_geysers` user
+[source,bash]
+----
+export APP_USERNAME=app_geysers
+export APP_PASSWORD='my_app_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with `app_geysers` user
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has only permissions for topics prefixed with `enceladus_`.
+
+.Create an topic with name `enceladus_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic enceladus_app1 --replication-factor 3 --partitions 3
+----
+
+.Try to create an topic with name `europa_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic europa_app1 --replication-factor 3 --partitions 3
+----
+
+The user `app_geysers` was only able to create the topic with the name `enceladus_app1`.
+
+.Publish a message to topic `enceladus_app1`
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic enceladus_app1 \
+    --producer.config app.config \
+    --property parse.key=false
+----
+
+.Consume a message from topic `enceladus_app1` with consumer group `enceladus_app1_cg`
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic enceladus_app1 \
+    --group enceladus_app1_cg \
+    --consumer.config app.config  \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----

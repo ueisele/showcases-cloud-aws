@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -e
+
+function btpl () {
+    local tplfile="${1:?Missing template file as first parameter!}"
+    cd "$(dirname "${tplfile}")" && eval "cat <<EOF
+$(<"$(basename "${tplfile}")")
+EOF
+" 2> /dev/null
+}
+
+if [ "${BASH_SOURCE[0]}" == "$0" ]; then
+  btpl "$@"
+fi
