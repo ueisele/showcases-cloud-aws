@@ -145,6 +145,33 @@ kubectl create secret generic mds-keytab \
 kubectl -n confluent-kerberos label secret mds-keytab app.kubernetes.io/instance=confluent
 ----
 
+==== Adjust the AD/Kerberos Hostnames in the kafka.yaml
+
+It is important that the real names of the domain controllers are used for authentication via Kerberos. Addidional CNAMEs like `ada.letuscode.xyz` will not work!
+
+Therefore, at the moment, the actual domain controler names are specified in the link:cluster/kafka.yaml[cluster/kafka.yaml] file.
+Before you start, ensure that this domain controller names and IP addresses are correct.
+
+.Exec into the LDAP Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli -o name) bash
+----
+
+.Query the domain controllers for `ada.letuscode.xyz``
+[source,bash]
+----
+> nslookup -type=srv _ldap._tcp.dc._msdcs.ada.letuscode.xyz
+Server:         172.20.0.10
+Address:        172.20.0.10:53
+
+Non-authoritative answer:
+_ldap._tcp.dc._msdcs.ada.letuscode.xyz  service = 0 100 389 win-8sgn1ju6kut.ada.letuscode.xyz
+_ldap._tcp.dc._msdcs.ada.letuscode.xyz  service = 0 100 389 win-0lu0jt0n3fk.ada.letuscode.xyz
+----
+
+*NOTE*: Because the hostnames are dynamically created when the AWS Directory AD is created, this solution is impractible to some extend. We would like to use a generic name like `ada.letuscode.xyz` for the AD. Especially to not depend on a single instance for connection. For now we accept this, but we should investigate other solutions to overcome this. Kerberos works with SPNs (Service Principle Names) for authorization. By default for a service like AD there exists one with the exact hostname (e.g `ldap/win-8sgn1ju6kut.ada.letuscode.xyz@ADA.LETUSCODE.XYZ`). However its also possible to create additional SPNs, so it could work if we add an additional SPN per domain controller with the name `ldap/ada.letuscode.xyz@ADA.LETUSCODE.XYZ`.
+
 ==== Create MDS Keypair
 
 .Create the Kubernetes secret with a keypair which will be used by MDS for token signing.
