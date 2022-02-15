@@ -1,0 +1,8 @@
+FROM confluentinc/cp-kafkacat:7.0.1
+LABEL maintainer="Uwe Eisele <code@uweeisele.eu>"
+
+USER root
+
+RUN microdnf install -y cyrus-sasl cyrus-sasl-gssapi \
+    && microdnf clean all \
+    && rm -rf /tmp/*
