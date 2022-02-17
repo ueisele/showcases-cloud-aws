@@ -1,0 +1,22 @@
+FROM debian:bullseye-slim
+LABEL maintainer="Uwe Eisele <code@uweeisele.eu>"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+ARG SLAPD_VERSION
+RUN apt-get update \
+    && apt-get -y install slapd=${SLAPD_VERSION} ldap-utils \
+    && apt-get clean \
+    && rm -rf /etc/ldap/slapd.d
+
+RUN apt-get update \
+    && apt-get -y install libnss-ldap libsasl2-modules-gssapi-mit krb5-user \
+    && apt-get clean
+
+ENV DEBIAN_FRONTEND=
+
+USER openldap
+
+CMD ["slapd", "-h", "ldap://:1389/", "-d2"]
+
+EXPOSE 1389

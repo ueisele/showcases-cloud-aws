@@ -1,0 +1,178 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openldap-proxy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: openldap
+      app.kubernetes.io/name: openldap-proxy
+  replicas: 1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: openldap
+        app.kubernetes.io/name: openldap-proxy
+    spec:
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 5
+      containers:
+      - name: openldap-proxy
+        image: ueisele/openldap
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 700m
+            memory: 1024Mi
+          requests:
+            cpu: 700m
+            memory: 1024Mi
+        ports:
+        - containerPort: 1389
+          name: ldap
+        securityContext:
+          runAsUser: 101
+          runAsGroup: 101
+        volumeMounts:
+        - name: slapd
+          mountPath: /etc/ldap/slapd.conf
+          subPath: slapd.conf
+          readOnly: true
+      volumes:
+      - name: slapd
+        configMap:
+          name: openldap-proxy-slapd
+      dnsConfig:
+        options:
+        - name: ndots
+          value: "1"
+      securityContext:
+        fsGroup: 101
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: "kubernetes.io/arch"
+                operator: "In"
+                values: ["arm64"]
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: "kubernetes.io/os"
+                operator: "In"
+                values: ["linux"]
+              - key: "kubernetes.io/arch"
+                operator: "In"
+                values: ["arm64", "amd64"]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: openldap-proxy-slapd
+data:
+  slapd.conf: |
+    #
+    # See slapd.conf(5) for details on configuration options.
+    # This file should NOT be world readable.
+    #
+    # https://www.pixelstech.net/article/1509263631-OpenLDAP-Proxy----slapd-conf
+
+    # Include schemas
+    include         /etc/ldap/schema/corba.schema
+    include         /etc/ldap/schema/core.schema
+    include         /etc/ldap/schema/cosine.schema
+    include         /etc/ldap/schema/duaconf.schema
+    include         /etc/ldap/schema/dyngroup.schema
+    include         /etc/ldap/schema/inetorgperson.schema
+    include         /etc/ldap/schema/java.schema
+    include         /etc/ldap/schema/misc.schema
+    include         /etc/ldap/schema/nis.schema
+    include         /etc/ldap/schema/openldap.schema
+    include         /etc/ldap/schema/ppolicy.schema
+    include         /etc/ldap/schema/collective.schema
+
+    # Allow LDAPv2 client connections.  This is NOT the default.
+    allow bind_v2
+
+    pidfile         /var/run/slapd/slapd.pid
+    argsfile        /var/run/slapd/slapd.args
+
+    # Load dynamic backend modules
+    # - modulepath is architecture dependent value (32/64-bit system)
+    # - back_sql.la overlay requires openldap-server-sql package
+    # - dyngroup.la and dynlist.la cannot be used at the same time
+
+    modulepath  /usr/lib/ldap
+    moduleload  back_ldap
+    moduleload  back_meta
+    moduleload  rwm
+
+    # The next three lines allow use of TLS for encrypting connections using a
+    # dummy test certificate which you can generate by running.
+    # TLSCACertificateFile /root/openldap_proxy/data/certs/ldap.crt
+    # TLSCertificateFile /root/openldap_proxy/data/certs/ldap.crt
+    # TLSCertificateKeyFile /root/openldap_proxy/data/certs/ldap.key
+
+    # Log level
+    loglevel 256
+
+    #######################################################################
+    # database definitions
+    #######################################################################
+
+    #### Database definition #########################################
+
+    database meta
+    suffix   "ou=cp,dc=cp,dc=letuscode,dc=xyz"
+    #subordinate
+    #rootdn   "cn=admin,ou=Users,dc=letuscode,dc=xyz"
+    readonly true
+
+    uri           "ldap://ada.letuscode.xyz/ou=Applications,ou=cp,dc=cp,dc=letuscode,dc=xyz"
+    suffixmassage "ou=Applications,ou=cp,dc=cp,dc=letuscode,dc=xyz" "ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz"
+
+    idassert-bind
+        bindmethod=simple
+        binddn="cn=admin,ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz"
+        credentials="my_password"
+        mode=none
+    idassert-authzFrom "*"
+
+    rebind-as-user true
+    chase-referrals false
+
+    uri "ldap://com.codelabs.dev/ou=Users,ou=cp,dc=cp,dc=letuscode,dc=xyz"
+    suffixmassage "ou=Users,ou=cp,dc=cp,dc=letuscode,dc=xyz" "ou=Users,ou=com,dc=com,dc=codelabs,dc=dev"
+
+    idassert-bind
+        bindmethod=simple
+        binddn="cn=admin,ou=Users,ou=com,dc=com,dc=codelabs,dc=dev"
+        credentials="my_password"
+        mode=none
+    idassert-authzFrom "*"
+
+    rebind-as-user true
+    chase-referrals false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openldap-proxy
+  labels:
+    app.kubernetes.io/instance: openldap
+    app.kubernetes.io/name: openldap-proxy
+spec:
+  ports:
+    - name: ldap
+      port: 389
+      targetPort: ldap
+      protocol: TCP
+  type: ClusterIP
+  selector:
+      app.kubernetes.io/instance: openldap
+      app.kubernetes.io/name: openldap-proxy

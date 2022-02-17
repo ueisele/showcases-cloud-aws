@@ -8,7 +8,15 @@ The goal of the example is to demonstrate authentication and authorization with 
 
 *NOTE*: The Kubernetes manifests are based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts].
 
+*IMPORTANT*:
+
+* Kerberos authentication is an option for Kafka broker. It is possible to authenticate users from the local as well as from other remote ADs. 
+* Kerberos requires that services are registered on a domain which matches their hostname. This is typically not the case for services running in Kubernetes. There are workarounds like adding SPNs to user prinicpals. However, especially cross domain authentication may fail, because no realm for the service like Kafka exists. Kerberos is not recommended for services running in Kubernetes. Mechanisms like OIDC are preferable.
+* Kerberos authentication is not supported for MDS user authentication. MDS always performs an LDAP search of the local LDAP and performs an simple bind of the corresponding users. If an user is maintained in another AD it cannot be found. Therefore Confluent components like Control Center will not support authentication of users from other domains.
+
 == Prerequisites
+
+=== Domain `ADA.LETUSCODE.XYZ`
 
 This example requires link:../../../infrastructure/ldap[infrastructure/ldap] and link:../../../infrastructure/ec2-windows[infrastructure/ec2-windows] to be installed.
 
@@ -26,6 +34,16 @@ Connetc via RDP to the Windows EC2 instanced for `ada.letuscode.xyz` and create 
 * team_enceladus
 
 Add user `app_geysers` to group `team_enceladus`.
+
+=== Domain `com.codelabs.dev`
+
+Connetc via RDP to the Windows EC2 instanced for
+`com.codelabs.dev` and create the following users and groups:
+
+`ou=Users,ou=com,dc=com,dc=codelabs,dc=dev`:
+
+* ada.lovelace
+* grace.hopper
 
 == Deployment
 
@@ -56,8 +74,10 @@ kubectl apply -f cluster/zookeeper.yaml
 Before Kafka can be deployed, additional manual steps are required.
 
 * Creation of Kerberos keytab file to allow MDS to authenticate with LDAP without password
+* Adjust the Kerberos hostnames in the kafka.yaml file
 * Creation of keypair for MDS for token signing
 * Creation of credentials for Kafka Rest to authenticate with MDS
+* Creation of principals for GSSAPI Kerberos authentication on Kafka listener
 
 ==== Create Kerberos Keytab File for MDS
 
@@ -191,6 +211,133 @@ export KAFKAREST_PASSWORD='my_kafkarest_password'
 ./btpl security/kafkarest-credentials.btpl.yaml | kubectl apply -f -
 ----
 
+==== Creation of Principals for GSSAPI Kerberos Authentication on Kafka Listener
+
+https://docs.confluent.io/platform/current/kafka/authentication_sasl/authentication_sasl_gssapi.html#kafka-sasl-auth-gssapi
+
+For each Kafka broker hostname, to which a client connects, a SPN (Service Principal Name) is required.
+
+Connect to a Windows EC2 Instance which is connected to domain `ada.letuscode.xyz` and open PowerShell.
+
+Because the Kafka brokers are not registerd as computers on our Domain, we set SPNs for each broker hostname on the `kafka` user.
+
+*TODO:* I did not check if it also works without the SPNs. The assumption is that they are required, but it should be checked if it also works without them.
+
+[source,powershell]
+----
+setspn -U -S kafka/kafka kafka
+setspn -U -S kafka/kafka.confluent-kerberos.svc.cluster.local kafka
+setspn -U -S kafka/kafka-0.kafka-headless.confluent-kerberos.svc.cluster.local kafka
+setspn -U -S kafka/kafka-1.kafka-headless.confluent-kerberos.svc.cluster.local kafka
+setspn -U -S kafka/kafka-2.kafka-headless.confluent-kerberos.svc.cluster.local kafka
+----
+
+[source,powershell]
+----
+setspn -U -L kafka
+----
+
+----
+Registered ServicePrincipalNames for CN=kafka,OU=Users,OU=ada,DC=ada,DC=letuscode,DC=xyz:
+        kafka/kafka-2.kafka-headless.confluent-kerberos.svc.cluster.local
+        kafka/kafka-1.kafka-headless.confluent-kerberos.svc.cluster.local
+        kafka/kafka-0.kafka-headless.confluent-kerberos.svc.cluster.local
+        kafka/kafka.confluent-kerberos.svc.cluster.local
+        kafka/kafka
+----
+
+Now, it is possible to request tickets for those SPNs.
+
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli -o name) bash
+----
+
+[source,bash]
+----
+kinit admin@ADA.LETUSCODE.XYZ
+kvno kafka
+kvno kafka/kafka@ADA.LETUSCODE.XYZ
+kvno kafka/kafka.confluent-kerberos.svc.cluster.local@ADA.LETUSCODE.XYZ
+kvno kafka/kafka-0.kafka-headless.confluent-kerberos.svc.cluster.local@ADA.LETUSCODE.XYZ
+kvno kafka/kafka-1.kafka-headless.confluent-kerberos.svc.cluster.local@ADA.LETUSCODE.XYZ
+kvno kafka/kafka-2.kafka-headless.confluent-kerberos.svc.cluster.local@ADA.LETUSCODE.XYZ
+----
+
+----
+kafka@ADA.LETUSCODE.XYZ: kvno = 2
+----
+
+Note the `kvno` which is 3 in this case. This key version is required for the keytab file (also see link:https://www.oreilly.com/library/view/kerberos-the-definitive/0596004036/ch03s02s03.html[The Key Version Number]).
+
+Now lets create the Kerberos keytab file with the SPNs for the Kafka brokers.
+
+.First remove the existing Kerberos tickets (logout)
+[source,bash]
+----
+kdestroy
+----
+
+From the command line type `ktutil` to launch the utility.
+
+.Type the following command to add `kafka` user to the keytab (ensure that -k is set to the `kvno` value, e.g. -k 2)
+[source,bash]
+----
+addent -password -p kafka -k 2 -e RC4-HMAC
+----
+
+When prompted, enter the password for the Kerberos service principal, which is the same as for the corresponding user which is `kafka` in this case.
+
+**NOTE:** `kafka/kafka` has nothing to do with the user principal to which the SPNs has been added. The meaning is `{service}/{hostname}`. The name of the service is defined at the Kafka broker with the config:
+
+[source,yaml]
+----
+- name: KAFKA_SASL_KERBEROS_SERVICE_NAME
+  value: kafka
+----
+
+.Type the following command to create a keytab
+[source,bash]
+----
+wkt /tmp/kafka.ada.letuscode.xyz.keytab
+----
+
+Finally, type `q` to quit the ktutil utility.
+
+.You can view the service principals in the keytab using the klist command
+[source,bash]
+----
+klist -kt /tmp/kafka.ada.letuscode.xyz.keytab
+----
+
+.Now check if you can authenticate with the keytab file
+[source,bash]
+----
+export KRB5CCNAME=/tmp/kafka.ada.letuscode.xyz.cc.tmp
+kinit kafka@ADA.LETUSCODE.XYZ \
+    -S kafka/kafka.confluent-kerberos.svc.cluster.local@ADA.LETUSCODE.XYZ \
+    -kt /tmp/kafka.ada.letuscode.xyz.keytab \
+    -c ${KRB5CCNAME}
+----
+
+If you type `klist` it should see an ticket for SPN `kafka/kafka.confluent-kerberos.svc.cluster.local@ADA.LETUSCODE.XYZ`.
+
+.Copy the keytab file to your local machine
+[source,bash]
+----
+mkdir -p security/keytab
+kubectl -n confluent-kerberos cp $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli --template '{{range .items}}{{.metadata.name}}{{end}}'):/tmp/kafka.ada.letuscode.xyz.keytab security/keytab/kafka.ada.letuscode.xyz.keytab -c ldap-cli
+----
+
+.Create a Kubernetes secret with the keytab file
+[source,bash]
+----
+kubectl create secret generic kafka-keytab \
+    --from-file=kafka.ada.letuscode.xyz.keytab=security/keytab/kafka.ada.letuscode.xyz.keytab \
+    --namespace confluent-kerberos
+kubectl -n confluent-kerberos label secret kafka-keytab app.kubernetes.io/instance=confluent
+----
+
 ==== Deploy Kafka
 
 .Deploy Kafka brokers:
@@ -213,7 +360,120 @@ kubectl delete -f namespace.yaml
 
 == Verify Kafka AuthN & AuthZ
 
-=== Verify AuthN with LDAP credentials
+=== Verify AuthN with Kerberos and KafkaCat
+
+*NOTE:* GSSAPI only works if in the `confluentinc/cp-kafkacat` image also `cyrus-sasl` and `cyrus-sasl-gssapi` packages are installed.
+
+*NOTE:* GSSAPI only works with a proper configured /etc/krb5.cfg file. This file is mounted as a config map to the cli container.
+
+.Exec into the KafkaCat Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafkacat-cli -o name) bash
+----
+
+.Set admin credentials
+[source,bash]
+----
+export ADMIN_USERNAME=admin
+export ADMIN_PASSWORD='my_admin_password'
+----
+
+.Query Metadata with SASL/PLAIN
+[source,bash]
+----
+kafkacat -b kafka:9092 -L \
+    -X security.protocol=sasl_plaintext \
+    -X sasl.mechanisms=PLAIN \
+    -X sasl.username=${ADMIN_USERNAME} \
+    -X sasl.password=${ADMIN_PASSWORD}
+----
+
+.Query Metadata with SASL/GSSAPI
+[source,bash]
+----
+kafkacat -b kafka:9092 -L \
+    -X security.protocol=sasl_plaintext \
+    -X sasl.mechanisms=GSSAPI \
+    -X sasl.kerberos.service.name=kafka \
+    "-Xsasl.kerberos.kinit.cmd=echo ${ADMIN_PASSWORD} | kinit ${ADMIN_USERNAME}"
+----
+
+.Consume from Topic with SASL/GSSAPI
+[source,bash]
+----
+kafkacat -b kafka:9092 -C -t _confluent-metrics \
+    -X security.protocol=sasl_plaintext \
+    -X sasl.mechanisms=GSSAPI \
+    -X sasl.kerberos.service.name=kafka \
+    "-Xsasl.kerberos.kinit.cmd=echo ${ADMIN_PASSWORD} | kinit ${ADMIN_USERNAME}"
+----
+
+=== Verify AuthN with Kerberos and Kafka Java CLI Tools
+
+*NOTE:* GSSAPI only works with a proper configured /etc/krb5.cfg file. This file is mounted as a config map to the cli container.
+
+==== Create keytab file for `admin` user
+
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli -o name) bash
+----
+
+From the command line type `ktutil` to launch the utility.
+
+.Type the following command to add `admin` user to the keytab.
+[source,bash]
+----
+addent -password -p admin -k 1 -e RC4-HMAC
+----
+
+.Type the following command to create a keytab.
+[source,bash]
+----
+wkt /tmp/admin.ada.letuscode.xyz.keytab
+----
+
+Finally, type `q` to quit the ktutil utility.
+
+.You can view the service principals in the keytab using the klist command.
+[source,bash]
+----
+klist -kt /tmp/admin.ada.letuscode.xyz.keytab
+----
+
+.Now check if you can authenticate with the keytab file.
+[source,bash]
+----
+export KRB5CCNAME=/tmp/admin.ada.letuscode.xyz.cc.tmp
+kinit admin@ADA.LETUSCODE.DEV \
+    -kt /tmp/admin.ada.letuscode.xyz.keytab \
+    -c ${KRB5CCNAME}
+----
+
+.Copy the keytab file to your local machine.
+[source,bash]
+----
+mkdir -p security/keytab
+kubectl -n confluent-kerberos cp $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=ldap-cli --template '{{range .items}}{{.metadata.name}}{{end}}'):/tmp/admin.ada.letuscode.xyz.keytab security/keytab/admin.ada.letuscode.xyz.keytab -c ldap-cli
+----
+
+.Create a Kubernetes secret with the keytab file.
+[source,bash]
+----
+kubectl create secret generic admin-keytab \
+    --from-file=admin.ada.letuscode.xyz.keytab=security/keytab/admin.ada.letuscode.xyz.keytab \
+    --namespace confluent-kerberos
+kubectl -n confluent-kerberos label secret admin-keytab app.kubernetes.io/instance=confluent
+----
+
+==== Use the Keytab file with the Kafka CLI tools
+
+.Copy the keytab file to the Kafka Cli Pod.
+[source,bash]
+----
+kubectl -n confluent-kerberos cp security/keytab/admin.ada.letuscode.xyz.keytab $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli --template '{{range .items}}{{.metadata.name}}{{end}}'):/tmp/admin.ada.letuscode.xyz.keytab
+----
 
 .Exec into the Kafka Cli pod
 [source,bash]
@@ -221,51 +481,74 @@ kubectl delete -f namespace.yaml
 kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
 ----
 
-.Create client config for `kafka` super user
+.Create client config for `admin` super user
 [source,bash]
 ----
-export KAFKA_USERNAME=kafka
-export KAFKA_PASSWORD='my_kafka_password'
-cat > kafka.config << EOF
-sasl.mechanism=PLAIN
+cat > admin.config << EOF
+sasl.mechanism=GSSAPI
 security.protocol=SASL_PLAINTEXT
-sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
-    username="${KAFKA_USERNAME}" \
-    password="${KAFKA_PASSWORD}";
+sasl.kerberos.service.name=kafka
+sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required \
+    useKeyTab=true \
+    storeKey=true \
+    keyTab="/tmp/admin.ada.letuscode.xyz.keytab" \
+    principal="admin@ADA.LETUSCODE.DEV";
 EOF
 ----
 
-.List topics with `kafka` super user
+.List topics with `admin` super user
 [source,bash]
 ----
-kafka-topics --command-config kafka.config --bootstrap-server kafka:9092 --list
+kafka-topics --command-config admin.config --bootstrap-server kafka:9092 --list
 ----
 
-This command will lis tall topics.
+==== Use the Ticket Cache with the Kafka CLI tools
 
-.Create client config for `app_geysers` user
+.Exec into the Kafka Cli pod
 [source,bash]
 ----
-export APP_USERNAME=app_geysers
-export APP_PASSWORD='my_app_password'
-cat > app.config << EOF
-sasl.mechanism=PLAIN
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config which uses the Kerberos ticket cache
+[source,bash]
+----
+cat > gssapi-tc.config << EOF
+sasl.mechanism=GSSAPI
 security.protocol=SASL_PLAINTEXT
-sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
-    username="${APP_USERNAME}" \
-    password="${APP_PASSWORD}";
+sasl.kerberos.service.name=kafka
+sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required useTicketCache=true;
 EOF
+----
+
+.Login with user admin
+[source,bash]
+----
+kinit admin@ADA.LETUSCODE.XYZ
+----
+
+.List topics with user currently authenticated user
+[source,bash]
+----
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 --list
+----
+
+.Login with user `app_geysers`
+[source,bash]
+----
+kinit app_geysers@ADA.LETUSCODE.DEV
 ----
 
 .List topics with `app_geysers` user
 [source,bash]
 ----
-kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 --list
 ----
 
-This is a valid user, but has no permissions. Therefore no topics are listed.
+This is a valid user, but has no permissions. Therefore no topics are
+listed.
 
-=== Create Kafka Role Bindings for Team Group
+=== Create Kafka Role Bindings for Group `team_enceladus` to verify AuthZ 
 
 .Exec into the Confluent Cli pod
 [source,bash]
@@ -273,7 +556,7 @@ This is a valid user, but has no permissions. Therefore no topics are listed.
 kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
 ----
 
-.Login with super user `kafka`
+.Login with super user `admin`
 [source,bash]
 ----
 confluent login
@@ -344,24 +627,16 @@ confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal 
 kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
 ----
 
-.Create client config for `app_geysers` user
+.Login with user `app_geysers`
 [source,bash]
 ----
-export APP_USERNAME=app_geysers
-export APP_PASSWORD='my_app_password'
-cat > app.config << EOF
-sasl.mechanism=PLAIN
-security.protocol=SASL_PLAINTEXT
-sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
-    username="${APP_USERNAME}" \
-    password="${APP_PASSWORD}";
-EOF
+kinit app_geysers@ADA.LETUSCODE.DEV
 ----
 
 .List topics with `app_geysers` user
 [source,bash]
 ----
-kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 --list
 ----
 
 This is a valid user, but has only permissions for topics prefixed with `enceladus_`.
@@ -369,15 +644,15 @@ This is a valid user, but has only permissions for topics prefixed with `encelad
 .Create an topic with name `enceladus_app1`
 [source,bash]
 ----
-kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 \
         --create --topic enceladus_app1 --replication-factor 3 --partitions 3
 ----
 
-.Try to create an topic with name `europa_app1`
+.Try to create an topic with name `another-app1`
 [source,bash]
 ----
 kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
-        --create --topic europa_app1 --replication-factor 3 --partitions 3
+        --create --topic another-app1 --replication-factor 3 --partitions 3
 ----
 
 The user `app_geysers` was only able to create the topic with the name `enceladus_app1`.
@@ -388,7 +663,7 @@ The user `app_geysers` was only able to create the topic with the name `enceladu
 echo "test_message" | kafka-console-producer \
     --broker-list kafka:9092 \
     --topic enceladus_app1 \
-    --producer.config app.config \
+    --producer.config gssapi-tc.config \
     --property parse.key=false
 ----
 
@@ -399,7 +674,353 @@ kafka-console-consumer \
     --bootstrap-server kafka:9092 \
     --topic enceladus_app1 \
     --group enceladus_app1_cg \
-    --consumer.config app.config  \
+    --consumer.config gssapi-tc.config  \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----
+
+== Verify Kafka AuthN & AuthZ (Foreign Domain)
+
+=== Verify AuthN with Kerberos
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Login with user `florian.eisele`
+[source,bash]
+----
+kinit florian.eisele@COM.CODELABS.DEV
+----
+
+.Create client config which uses the Kerberos ticket cache
+[source,bash]
+----
+cat > gssapi-tc.config << EOF
+sasl.mechanism=GSSAPI
+security.protocol=SASL_PLAINTEXT
+sasl.kerberos.service.name=kafka
+sasl.jaas.config=com.sun.security.auth.module.Krb5LoginModule required useTicketCache=true;
+EOF
+----
+
+.List topics with `florian.eisele` user
+[source,bash]
+----
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 --list
+----
+
+The user is authenticated, but has no permissions to list any topics.
+
+=== Deep Dive Kerberos Authentication Flow
+
+==== Client
+
+.Inital authentication to get ticket from KDC
+[source,bash]
+----
+kinit florian.eisele@COM.CODELABS.DEV
+----
+
+----
+AS-REQ -> AD COM.CODELABS.DEV
+  cname:
+    type: kRB5-NT-PRINCIPAL
+    cname: florian.eisele
+  sname:
+    type: kRB5-NT-SRV-INST
+    sname: krbtgt/COM.CODELABS.DEV
+AS-REP <- AD COM.CODELABS.DEV
+  cname:
+    type: kRB5-NT-PRINCIPAL
+    cname: florian.eisele
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/COM.CODELABS.DEV
+    cipher: 129fb0e61b...
+----
+
+.Request topics from Kafka by using previously acquired ticket
+[source,bash]
+----
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 --list
+----
+
+*In order to contact Kafka bootstrap broker request service ticket for it*
+
+Service: kafka/kafka.confluent-kerberos.svc.cluster.local@ada.letuscode.xyz
+
+----
+TGS-REQ -> AD COM.CODELABS.DEV
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/COM.CODELABS.DEV
+    cipher: 129fb0e61b...
+  sname:
+    type: kRB5-NT-SRV-INST
+    sname: krbtgt/ada.letuscode.xyz
+TGS-REP <- AD COM.CODELABS.DEV
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/ada.letuscode.xyz
+    cipher: 3af81c7257...
+----
+
+----
+TGS-REQ -> AD ada.letuscode.xyz
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/ada.letuscode.xyz
+    cipher: 3af81c7257...
+  sname:
+    type: kRB5-NT-UNKNOWN
+    sname: kafka/kafka.confluent-kerberos.svc.cluster.local
+TGS-REP <- AD ada.letuscode.xyz
+  cname:
+    type: kRB5-NT-PRINCIPAL
+    cname: florian.eisele
+  ticket:
+    sname:
+    type: kRB5-NT-UNKNOWN
+    sname: kafka/kafka.confluent-kerberos.svc.cluster.local
+    cipher: 2963d33aa8...
+----
+
+*In order to contact actual Kafka broker request service ticket for it*
+
+Service: kafka/kafka-0.kafka-headless.confluent-kerberos.svc.cluster.local@ada.letuscode.xyz
+
+----
+TGS-REQ -> AD COM.CODELABS.DEV
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/COM.CODELABS.DEV
+    cipher: 129fb0e61b...
+  sname:
+    type: kRB5-NT-SRV-INST
+    sname: krbtgt/ada.letuscode.xyz
+TGS-REP <- AD COM.CODELABS.DEV
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/ada.letuscode.xyz
+    cipher: b98a0c3e88...
+----
+
+----
+TGS-REQ -> AD ada.letuscode.xyz
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/ada.letuscode.xyz
+    cipher: b98a0c3e88...
+  sname:
+    type: kRB5-NT-UNKNOWN
+    sname: kafka/kafka-0.kafka-headless.confluent-kerberos.svc.cluster.local
+TGS-REP <- AD ada.letuscode.xyz
+  cname:
+    type: kRB5-NT-PRINCIPAL
+    cname: florian.eisele
+  ticket:
+    sname:
+    type: kRB5-NT-UNKNOWN
+    sname: kafka/kafka-0.kafka-headless.confluent-kerberos.svc.cluster.local
+    cipher: 789ea1a570...
+----
+
+==== Broker
+
+*On Kafka broker startup it authenticates with the KDC with its Keytab file*
+
+----
+AS-REQ -> AD ada.letuscode.xyz
+  cname:
+    type: kRB5-NT-PRINCIPAL
+    cname: kafka
+  sname:
+    type: kRB5-NT-SRV-INST
+    sname: krbtgt/ada.letuscode.xyz
+AS-REP <- AD ada.letuscode.xyz
+  cname:
+    type: kRB5-NT-PRINCIPAL
+    cname: kafka
+  ticket:
+    sname:
+      type: kRB5-NT-SRV-INST
+      sname: krbtgt/ada.letuscode.xyz
+    cipher: 6eda5904fe...
+----
+
+*When the client connects with its ticket the broker can validate without connection to KDC*
+
+----
+[2022-02-16 07:54:47,103] TRACE connections.max.reauth.ms for mechanism=PLAIN: 0 (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,103] TRACE connections.max.reauth.ms for mechanism=GSSAPI: 0 (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,169] DEBUG Set SASL server state to HANDSHAKE_OR_VERSIONS_REQUEST during authentication (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,169] DEBUG Handling Kafka request API_VERSIONS during authentication (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,170] DEBUG Set SASL server state to HANDSHAKE_REQUEST during authentication (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,171] DEBUG Handling Kafka request SASL_HANDSHAKE during authentication (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,171] DEBUG Using SASL mechanism 'GSSAPI' provided by client (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+[2022-02-16 07:54:47,171] DEBUG Creating SaslServer for kafka@ada.letuscode.xyz with mechanism GSSAPI (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+Found KeyTab /mnt/secrets/kafka-keytab/kafka.ada.letuscode.xyz.keytab for kafka@ada.letuscode.xyz
+Found KeyTab /mnt/secrets/kafka-keytab/kafka.ada.letuscode.xyz.keytab for kafka@ada.letuscode.xyz
+Found ticket for kafka@ada.letuscode.xyz to go to krbtgt/ada.letuscode.xyz@ada.letuscode.xyz expiring on Wed Feb 16 12:42:15 GMT 2022
+[2022-02-16 07:54:47,172] DEBUG Set SASL server state to AUTHENTICATE during authentication (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+Entered Krb5Context.acceptSecContext with state=STATE_NEW
+Looking for keys for: kafka@ada.letuscode.xyz
+Added key: 23version: 3
+>>> EType: sun.security.krb5.internal.crypto.ArcFourHmacEType
+Using builtin default etypes for permitted_enctypes
+default etypes for permitted_enctypes: 18 17 20 19 16 23.
+>>> EType: sun.security.krb5.internal.crypto.ArcFourHmacEType
+MemoryCache: add 1644998087/204572/47D0CD7CC958801981F9DD40897B42286AC8973AB6F69A7FBDFC67AA2DCB62DB/florian.eisele@COM.CODELABS.DEV to florian.eisele@COM.CODELABS.DEV|kafka/kafka-0.kafka-headless.confluent-k>
+>>> KrbApReq: authenticate succeed.
+Krb5Context setting peerSeqNumber to: 309214781
+Krb5Context setting mySeqNumber to: 309214781
+Krb5Context.wrap: data=[01 01 00 00 ]
+Krb5Context.wrap: token=[60 30 06 09 2a 86 48 86 f7 12 01 02 02 02 01 11 00 ff ff ff ff b3 1c 1b f5 6b 14 e3 b0 2e c4 f8 bd 17 29 52 a6 55 68 18 6a 08 4c cf f0 01 01 00 00 01 ]
+Krb5Context.unwrap: token=[60 52 06 09 2a 86 48 86 f7 12 01 02 02 02 01 11 00 ff ff ff ff f0 e9 d0 1f d3 09 26 24 b0 b9 72 fc 0e e1 fc b1 ec 89 df 14 36 3d 3d 41 01 00 00 00 63 61 72 65 6c 6f 67 2d 75 73 65 72 40 >
+Krb5Context.unwrap: data=[01 00 00 00 63 61 72 65 6c 6f 67 2d 75 73 65 72 40 41 55 54 48 2d 43 4f 4e 46 4c 55 45 4e 54 2e 4d 45 50 2e 4b 4e ]
+[2022-02-16 07:54:47,210] INFO Successfully authenticated client: authenticationID=florian.eisele@COM.CODELABS.DEV; authorizationID=florian.eisele@COM.CODELABS.DEV. (org.apache.kafka.common.security.authenti>
+[2022-02-16 07:54:47,210] DEBUG Authentication complete; session max lifetime from broker config=0 ms, no credential expiration; no session expiration, sending 0 ms to client (org.apache.kafka.common.security.auth>
+[2022-02-16 07:54:47,210] DEBUG Set SASL server state to COMPLETE during authentication (org.apache.kafka.common.security.authenticator.SaslServerAuthenticator)
+----
+
+=== Create Role bindings for user `florian.eisele`
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `admin`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+----
+
+.Create Role Bindings for user `florian.eisele`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal User:florian.eisele \
+    --role DeveloperManage \
+    --resource Topic:fe- \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:florian.eisele \
+    --role DeveloperWrite \
+    --resource Topic:fe- \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:florian.eisele \
+    --role DeveloperRead \
+    --resource Topic:fe- \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:florian.eisele \
+    --role DeveloperManage \
+    --resource Group:fe- \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:florian.eisele \
+    --role DeveloperRead \
+    --resource Group:fe- \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:florian.eisele \
+    --role DeveloperWrite \
+    --resource Group:fe- \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal User:florian.eisele
+----
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-kerberos exec -it $(kubectl -n confluent-kerberos get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Login with user `florian.eisele`
+[source,bash]
+----
+kinit florian.eisele@COM.CODELABS.DEV
+----
+
+.List topics with `florian.eisele` user
+[source,bash]
+----
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has only permissions for topics prefixed with `fe-`.
+
+.Create an topic with name `fe-app1`
+[source,bash]
+----
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 \
+        --create --topic fe-app1 --replication-factor 3 --partitions 3
+----
+
+.Try to create an topic with name `another-app1`
+[source,bash]
+----
+kafka-topics --command-config gssapi-tc.config --bootstrap-server kafka:9092 \
+        --create --topic another-app1 --replication-factor 3 --partitions 3
+----
+
+The user `florian.eisele` was only able to create the topic with the name `fe-app1`.
+
+.Publish a message to topic `fe-app1`
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic fe-app1 \
+    --producer.config gssapi-tc.config \
+    --property parse.key=false
+----
+
+.Consume a message from topic `fe-app1` with consumer group `fe-app1-cg`
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic fe-app1 \
+    --group fe-app1-cg \
+    --consumer.config gssapi-tc.config  \
     --from-beginning \
     --property parse.key=false \
     --max-messages 1

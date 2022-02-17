@@ -1,0 +1,81 @@
+= Docker Images
+
+== Prerequisites
+
+.Enable execution of different multi-architecture containers by QEMU and binfmt_misc (see https://github.com/multiarch/qemu-user-static):
+[source,bash]
+----
+docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+----
+
+.Verify if activation was successfull:
+[source,bash]
+----
+docker run --rm --platform linux/arm64 debian:bullseye-slim uname -a
+----
+
+.Create builder for multi arch builds:
+[source,bash]
+----
+docker buildx create --name builder --use
+----
+
+Also see:
+
+* https://www.docker.com/blog/faster-multi-platform-builds-dockerfile-cross-compilation-guide/
+* https://www.docker.com/blog/speed-up-building-with-docker-buildx-and-graviton2-ec2/
+
+== LDAP CLI
+
+[source,bash]
+----
+docker buildx build --push \
+    --platform linux/amd64,linux/arm64 \
+    -t ueisele/ldap-utils:$(date --utc +'%Y%m%dT%H%M%Z') \
+    -t ueisele/ldap-utils:latest \
+    -f Dockerfile.ldaputils .
+----
+
+[source,bash]
+----
+docker run --rm -it --platform linux/amd64 -v $(pwd)/krb5.conf:/etc/krb5.conf ueisele/ldap-utils:latest
+----
+
+== OpenLDAP
+
+[source,bash]
+----
+SLAPD_VERSION=2.4.57
+SLAPD_PACKAGE_VERSION=${SLAPD_VERSION}+dfsg-3
+docker buildx build --push \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg SLAPD_VERSION=${SLAPD_PACKAGE_VERSION} \
+    -t ueisele/openldap:${SLAPD_VERSION}-$(date --utc +'%Y%m%dT%H%M%Z') \
+    -t ueisele/openldap:${SLAPD_VERSION} \
+    -t ueisele/openldap:latest \
+    -f Dockerfile.openldap .
+----
+
+[source,bash]
+----
+docker run --rm --platform linux/amd64 -v $(pwd)/slapd.conf:/etc/ldap/slapd.conf -p 1389:1389 ueisele/openldap:latest
+----
+
+== Kafka Cat with GSSAPI Support
+
+[source,bash]
+----
+CONFLUENT_VERSION=7.0.1
+docker buildx build --push \
+    --platform linux/amd64,linux/arm64 \
+    --build-arg CONFLUENT_VERSION=${CONFLUENT_VERSION} \
+    -t ueisele/kafkacat-gssapi:${CONFLUENT_VERSION}-$(date --utc +'%Y%m%dT%H%M%Z') \
+    -t ueisele/kafkacat-gssapi:${CONFLUENT_VERSION} \
+    -t ueisele/kafkacat-gssapi:latest \
+    -f Dockerfile.kafkacat .
+----
+
+[source,bash]
+----
+docker run --rm -it --platform linux/amd64 -v $(pwd)/krb5.conf:/etc/krb5.conf ueisele/kafkacat-gssapi:latest
+----

@@ -17,7 +17,8 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastru
   ** link:examples/kubernetes/storage[Examples which demonstrate persistence]
   ** link:examples/kubernetes/external-access[Examples which demonstrate how to provide external access]
 * link:examples/confluent-ce[Confluent Enterprise]
-  ** link:examples/confluent-ce/ldap[Confluent AuthN and AuthZ with AD and RBAC]
+  ** link:examples/confluent-ce/ldap[Confluent AuthN with LDAP and AuthZ with RBAC]
+  ** link:examples/confluent-ce/kerberos[Confluent AuthN with Kerberos and AuthZ with RBAC]
 * link:examples/confluent-ccs[Confluent Community]
   ** link:examples/confluent-ccs/simple[Simple Kafka Deployment for Docker Compose and Kubernetes]
 

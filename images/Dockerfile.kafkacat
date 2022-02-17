@@ -1,4 +1,5 @@
-FROM confluentinc/cp-kafkacat:7.0.1
+ARG CONFLUENT_VERSION
+FROM confluentinc/cp-kafkacat:${CONFLUENT_VERSION}
 LABEL maintainer="Uwe Eisele <code@uweeisele.eu>"
 
 USER root

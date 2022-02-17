@@ -2,21 +2,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ldap-cli
-  namespace: confluent-kerberos
+  name: ldap-cli-wireshark
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/instance: confluent
-      app.kubernetes.io/name: ldap-cli
+      app.kubernetes.io/instance: ldap
+      app.kubernetes.io/name: ldap-cli-wireshark
   replicas: 1
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: confluent
-        app.kubernetes.io/name: ldap-cli
+        app.kubernetes.io/instance: ldap
+        app.kubernetes.io/name: ldap-cli-wireshark
     spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 5
@@ -31,10 +30,35 @@ spec:
       #- ip: "10.0.3.202"
       #  hostnames: ["win-i4nq6d8gegm.com.codelabs.dev"]
       containers:
+      - name: wireshark
+        image: ueisele/wireshark:3.6.1
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1408Mi
+          requests:
+            cpu: 1000m
+            memory: 1408Mi
+        ports:
+          - containerPort: 14500
+            name: https
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "NET_RAW"]
       - name: ldap-cli
         image: ueisele/ldap-utils
         command: ["bash", "-c", "tail -F /dev/null"]
         imagePullPolicy: Always
+        env:
+        - name: LOCAL_LDAP_USERNAME
+          value: ${LOCAL_LDAP_USERNAME}
+        - name: LOCAL_LDAP_PASSWORD
+          value: ${LOCAL_LDAP_PASSWORD}
+        - name: REMOTE_LDAP_USERNAME
+          value: ${REMOTE_LDAP_USERNAME}
+        - name: REMOTE_LDAP_PASSWORD
+          value: ${REMOTE_LDAP_PASSWORD}
         resources:
           limits:
             cpu: 100m
@@ -49,7 +73,7 @@ spec:
       volumes:
       - name: krb5
         configMap:
-          name: ldap-cli-krb5
+          name: ldap-cli-wireshark-krb5
       dnsConfig:
         options:
         - name: ndots
@@ -76,8 +100,7 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: ldap-cli-krb5
-  namespace: confluent-kerberos
+  name: ldap-cli-wireshark-krb5
 data:
   krb5.conf: |
     [libdefaults]
@@ -91,21 +114,21 @@ data:
 
     [realms]
             ADA.LETUSCODE.XYZ = {
-                    kdc = win-hljpgj485cu.ada.letuscode.xyz
-                    kdc = win-s7kcc3309rm.ada.letuscode.xyz
-                    #kdc = ada.letuscode.xyz
-                    admin_server = win-hljpgj485cu.ada.letuscode.xyz
-                    admin_server = win-s7kcc3309rm.ada.letuscode.xyz
-                    #admin_server = ada.letuscode.xyz
+                    #kdc = win-hljpgj485cu.ada.letuscode.xyz
+                    #kdc = win-s7kcc3309rm.ada.letuscode.xyz
+                    kdc = ada.letuscode.xyz
+                    #admin_server = win-hljpgj485cu.ada.letuscode.xyz
+                    #admin_server = win-s7kcc3309rm.ada.letuscode.xyz
+                    admin_server = ada.letuscode.xyz
                     default_domain = ada.letuscode.xyz
             }
             COM.CODELABS.DEV = {
-                    kdc = win-oeiehoimr43.com.codelabs.dev
-                    kdc = win-i4nq6d8gegm.com.codelabs.dev
-                    #kdc = com.codelabs.dev
-                    admin_server = win-oeiehoimr43.com.codelabs.dev
-                    admin_server = win-i4nq6d8gegm.com.codelabs.dev
-                    #admin_server = com.codelabs.dev
+                    #kdc = win-oeiehoimr43.com.codelabs.dev
+                    #kdc = win-i4nq6d8gegm.com.codelabs.dev
+                    kdc = com.codelabs.dev
+                    #admin_server = win-oeiehoimr43.com.codelabs.dev
+                    #admin_server = win-i4nq6d8gegm.com.codelabs.dev
+                    admin_server = com.codelabs.dev
                     default_domain = com.codelabs.dev
             }
 
@@ -114,3 +137,21 @@ data:
             ada.letuscode.xyz = ADA.LETUSCODE.XYZ
             .com.codelabs.dev = COM.CODELABS.DEV
             com.codelabs.dev = COM.CODELABS.DEV
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ldap-cli-wireshark
+  labels:
+    app.kubernetes.io/instance: ldap
+    app.kubernetes.io/name: ldap-cli-wireshark
+spec:
+  ports:
+    - name: https
+      port: 443
+      targetPort: https
+      protocol: TCP
+  type: ClusterIP
+  selector:
+      app.kubernetes.io/instance: ldap
+      app.kubernetes.io/name: ldap-cli-wireshark

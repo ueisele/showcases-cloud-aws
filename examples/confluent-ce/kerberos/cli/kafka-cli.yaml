@@ -20,6 +20,16 @@ spec:
     spec:
       restartPolicy: Always
       terminationGracePeriodSeconds: 5
+      ## required to fix reverse lookup issue with Kerberos
+      #hostAliases:
+      #- ip: "10.0.3.119"
+      #  hostnames: ["win-hljpgj485cu.ada.letuscode.xyz"]
+      #- ip: "10.0.4.52"
+      #  hostnames: ["win-s7kcc3309rm.ada.letuscode.xyz"]
+      #- ip: "10.0.4.51"
+      #  hostnames: ["win-oeiehoimr43.com.codelabs.dev"]
+      #- ip: "10.0.3.202"
+      #  hostnames: ["win-i4nq6d8gegm.com.codelabs.dev"]
       containers:
       - name: kafka-cli
         image: confluentinc/cp-server:7.0.1
@@ -32,6 +42,14 @@ spec:
           requests:
             cpu: 700m
             memory: 300Mi
+        volumeMounts:
+        - name: krb5
+          mountPath: "/etc/krb5.conf"
+          subPath: krb5.conf
+      volumes:
+      - name: krb5
+        configMap:
+          name: kafka-cli-krb5
       dnsConfig:
         options:
         - name: ndots
@@ -47,3 +65,45 @@ spec:
               - key: "kubernetes.io/arch"
                 operator: "In"
                 values: ["amd64"]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-cli-krb5
+  namespace: confluent-kerberos
+data:
+  krb5.conf: |
+    [libdefaults]
+            default_realm = ADA.LETUSCODE.XYZ
+            rdns = false
+            
+            kdc_timesync = 0
+            ccache_type = 4
+            forwardable = true
+            proxiable = true
+
+    [realms]
+            ADA.LETUSCODE.XYZ = {
+                    kdc = win-hljpgj485cu.ada.letuscode.xyz
+                    kdc = win-s7kcc3309rm.ada.letuscode.xyz
+                    #kdc = ada.letuscode.xyz
+                    admin_server = win-hljpgj485cu.ada.letuscode.xyz
+                    admin_server = win-s7kcc3309rm.ada.letuscode.xyz
+                    #admin_server = ada.letuscode.xyz
+                    default_domain = ada.letuscode.xyz
+            }
+            COM.CODELABS.DEV = {
+                    kdc = win-oeiehoimr43.com.codelabs.dev
+                    kdc = win-i4nq6d8gegm.com.codelabs.dev
+                    #kdc = com.codelabs.dev
+                    admin_server = win-oeiehoimr43.com.codelabs.dev
+                    admin_server = win-i4nq6d8gegm.com.codelabs.dev
+                    #admin_server = com.codelabs.dev
+                    default_domain = com.codelabs.dev
+            }
+
+    [domain_realm]
+            .ada.letuscode.xyz = ADA.LETUSCODE.XYZ
+            ada.letuscode.xyz = ADA.LETUSCODE.XYZ
+            .com.codelabs.dev = COM.CODELABS.DEV
+            com.codelabs.dev = COM.CODELABS.DEV

@@ -90,7 +90,7 @@ spec:
           value: -Djava.security.auth.login.config=/mnt/kafka-jaas/jaas.conf -Dsun.security.krb5.debug=true
         #### LOGGING ####
         - name: KAFKA_LOG4J_LOGGERS
-          value: "kafka.authorizer.logger=INFO,io.confluent.security.auth.provider.ldap=DEBUG"
+          value: "kafka.authorizer.logger=INFO,io.confluent.security.auth.provider.ldap=DEBUG,org.apache.kafka.common.security=TRACE,org.apache.kafka.common.security.kerberos=TRACE,org.apache.kafka.common.security.authenticator=TRACE"
         - name: KAFKA_LOG4J_ROOT_LOGLEVEL
           value: INFO
         #### Config Provider ####
@@ -107,20 +107,38 @@ spec:
         #### Listeners ####
         - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
           value: EXTERNAL:SASL_PLAINTEXT,INTERNAL:PLAINTEXT,REPLICATION:PLAINTEXT,TOKEN:SASL_PLAINTEXT
-        - name: KAFKA_SASL_ENABLED_MECHANISMS
-          value: PLAIN
+        - name: KAFKA_SASL_KERBEROS_SERVICE_NAME
+          value: kafka
+        # By default only principals of the default domain are supported.
+        # In order to support principals from multiple domains, mapping rules must be specified.
+        # https://docs.confluent.io/platform/current/kafka/authorization.html#configuration-options-for-customizing-sasl-kerberos-user-name
+        # https://web.mit.edu/Kerberos/krb5-latest/doc/admin/conf_files/krb5_conf.html (auth_to_local)
+        # This rule just uses the first element as the user.
+        - name: KAFKA_SASL_KERBEROS_PRINCIPAL_TO_LOCAL_RULES
+          value: RULE:[1:$1]/L,DEFAULT
         #### Replication ####
         - name: KAFKA_INTER_BROKER_LISTENER_NAME
           value: REPLICATION
         #### External Listener ####
         - name: KAFKA_LISTENER_NAME_EXTERNAL_SASL_ENABLED_MECHANISMS
-          value: PLAIN
-        - name: KAFKA_LISTENER_NAME_EXTERNAL_SASL_MECHANISMS
-          value: PLAIN
+          value: PLAIN,GSSAPI
+        ## PLAIN
         - name: KAFKA_LISTENER_NAME_EXTERNAL_PLAIN_SASL_JAAS_CONFIG
           value: "org.apache.kafka.common.security.plain.PlainLoginModule required;"
+        # The LdapAuthenticateCallbackHandler only performs a simple authentication:
+        # https://docs.confluent.io/platform/current/kafka/authentication_sasl/client-authentication-ldap.html
         - name: KAFKA_LISTENER_NAME_EXTERNAL_PLAIN_SASL_SERVER_CALLBACK_HANDLER_CLASS
           value: io.confluent.security.auth.provider.ldap.LdapAuthenticateCallbackHandler
+        ## GSSAPI
+        # TODO: Check if the keytab file is actualy required
+        - name: KAFKA_LISTENER_NAME_EXTERNAL_GSSAPI_SASL_JAAS_CONFIG
+          value: |-
+            com.sun.security.auth.module.Krb5LoginModule required \
+              debug=true \
+              useKeyTab=true \
+              storeKey=true \
+              keyTab="/mnt/secrets/kafka-keytab/kafka.ada.letuscode.xyz.keytab" \
+              principal="kafka@ADA.LETUSCODE.XYZ";
         #### Token Listener (MDS) ####
         # https://docs.confluent.io/platform/current/kafka/configure-mds/index.html#configure-the-token-listener
         # Required for Control Center
@@ -132,8 +150,6 @@ spec:
           value: org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule required publicKeyPath="/mnt/secrets/mds-token/mdsPublicKey.pem";
         - name: KAFKA_LISTENER_NAME_TOKEN_SASL_ENABLED_MECHANISMS
           value: OAUTHBEARER
-        - name: KAFKA_LISTENER_NAME_TOKEN_SASL_MECHANISMS
-          value: PLAIN
         #### Authorization ####
         - name: KAFKA_SUPER_USERS
           value: User:admin;User:kafka;User:kafkarest;User:schemaregistry;User:controlcenter;User:ANONYMOUS
@@ -250,8 +266,13 @@ spec:
         - name: krb5
           mountPath: /etc/krb5.conf
           subPath: krb5.conf
+          readOnly: true
         - name: jaas
           mountPath: /mnt/kafka-jaas
+          readOnly: true
+        - name: kafka-keytab
+          mountPath: /mnt/secrets/kafka-keytab
+          readOnly: true
         - name: mds-keytab
           mountPath: /mnt/secrets/mds-keytab
           readOnly: true
@@ -270,6 +291,9 @@ spec:
       - name: jaas
         configMap:
           name: kafka-jaas
+      - name: kafka-keytab
+        secret:
+          secretName: kafka-keytab
       - name: mds-keytab
         secret:
           secretName: mds-keytab

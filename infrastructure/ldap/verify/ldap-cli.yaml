@@ -3,11 +3,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ldap-cli
-  namespace: confluent-kerberos
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/instance: ldap
       app.kubernetes.io/name: ldap-cli
   replicas: 1
   strategy:
@@ -15,7 +14,7 @@ spec:
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: confluent
+        app.kubernetes.io/instance: ldap
         app.kubernetes.io/name: ldap-cli
     spec:
       restartPolicy: Always
@@ -35,6 +34,15 @@ spec:
         image: ueisele/ldap-utils
         command: ["bash", "-c", "tail -F /dev/null"]
         imagePullPolicy: Always
+        env:
+        - name: LOCAL_LDAP_USERNAME
+          value: ${LOCAL_LDAP_USERNAME}
+        - name: LOCAL_LDAP_PASSWORD
+          value: ${LOCAL_LDAP_PASSWORD}
+        - name: REMOTE_LDAP_USERNAME
+          value: ${REMOTE_LDAP_USERNAME}
+        - name: REMOTE_LDAP_PASSWORD
+          value: ${REMOTE_LDAP_PASSWORD}
         resources:
           limits:
             cpu: 100m
@@ -77,7 +85,6 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ldap-cli-krb5
-  namespace: confluent-kerberos
 data:
   krb5.conf: |
     [libdefaults]
@@ -91,21 +98,21 @@ data:
 
     [realms]
             ADA.LETUSCODE.XYZ = {
-                    kdc = win-hljpgj485cu.ada.letuscode.xyz
-                    kdc = win-s7kcc3309rm.ada.letuscode.xyz
-                    #kdc = ada.letuscode.xyz
-                    admin_server = win-hljpgj485cu.ada.letuscode.xyz
-                    admin_server = win-s7kcc3309rm.ada.letuscode.xyz
-                    #admin_server = ada.letuscode.xyz
+                    #kdc = win-hljpgj485cu.ada.letuscode.xyz
+                    #kdc = win-s7kcc3309rm.ada.letuscode.xyz
+                    kdc = ada.letuscode.xyz
+                    #admin_server = win-hljpgj485cu.ada.letuscode.xyz
+                    #admin_server = win-s7kcc3309rm.ada.letuscode.xyz
+                    admin_server = ada.letuscode.xyz
                     default_domain = ada.letuscode.xyz
             }
             COM.CODELABS.DEV = {
-                    kdc = win-oeiehoimr43.com.codelabs.dev
-                    kdc = win-i4nq6d8gegm.com.codelabs.dev
-                    #kdc = com.codelabs.dev
-                    admin_server = win-oeiehoimr43.com.codelabs.dev
-                    admin_server = win-i4nq6d8gegm.com.codelabs.dev
-                    #admin_server = com.codelabs.dev
+                    #kdc = win-oeiehoimr43.com.codelabs.dev
+                    #kdc = win-i4nq6d8gegm.com.codelabs.dev
+                    kdc = com.codelabs.dev
+                    #admin_server = win-oeiehoimr43.com.codelabs.dev
+                    #admin_server = win-i4nq6d8gegm.com.codelabs.dev
+                    admin_server = com.codelabs.dev
                     default_domain = com.codelabs.dev
             }
 

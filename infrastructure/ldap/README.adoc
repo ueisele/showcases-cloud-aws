@@ -61,7 +61,7 @@ kubectl -n ${NS_EXAMPLES} exec -it $(kubectl -n ${NS_EXAMPLES} get pods -l app.k
 .Finally, after you are done, remove the Pod
 [source,bash]
 ----
-envsubst < verify/ldaptools.yaml | kubectl -n ${NS_EXAMPLES} delete -f -
+envsubst < verify/ldap-cli.yaml | kubectl -n ${NS_EXAMPLES} delete -f -
 ----
 
 === DNS Resolution
@@ -122,10 +122,11 @@ ldapsearch -x -H ldap://ada.letuscode.xyz -b 'dc=ada,dc=letuscode,dc=xyz' -D ${L
 
 === LDAP Queries Kerberos Auth
 
-Lets prepare for Kerberos authentication. First the realm configuration must be added to the [/etc/krb5.conf](verify/krb5.conf) file:
+In order to use Kerberos, an appropriate [/etc/krb5.conf](verify/krb5.conf) file is required. This file has alredy be prepared for this enviroment. 
 
-```bash
-cat > /etc/krb5.conf << EOF
+.Run `cat /etc/krb5.conf` to show the Kerberos configuration
+[source,bash]
+----
 [libdefaults]
         default_realm = ADA.LETUSCODE.XYZ
         rdns = false
@@ -153,9 +154,9 @@ cat > /etc/krb5.conf << EOF
         .com.codelabs.dev = COM.CODELABS.DEV
         com.codelabs.dev = COM.CODELABS.DEV
 EOF
-```
+----
 
-Now we can login with the command line tool `kinit` using the `ADA.LETUSCODE.XYZ` realm.
+Let's login with the command line tool `kinit` using the `ADA.LETUSCODE.XYZ` realm.
 
 [source,bash]
 ----
