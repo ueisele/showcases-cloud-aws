@@ -1,0 +1,5 @@
+= LDAP Examples
+
+All examples are based on the Kubernetes installation provided in the link:../../infrastructure[infrastructure] folder of this repository.
+
+* link:proxy[OpenLDAP Proxy for two ADs]

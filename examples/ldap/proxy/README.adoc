@@ -1,0 +1,62 @@
+= OpenLDAP Proxy
+
+OpenLDAP has a backend called `meta` which basically is a LDAP proxy.
+
+It supports:
+
+* Simple bind with users from different LDAPs
+* Searching multiple LDAPs with a single search query
+* Rewrite of Domains and Attributes
+
+----
+AD 1 ----- 
+         |
+         ------ OpenLDAP Proxy ---- Confluent MDS 
+         |
+AD 2 -----
+----
+
+== Deploy OpenLDAP Proxy
+
+[source,bash]
+----
+export LDAP_NAMESPACE=ldap
+kubectl create ns ${LDAP_NAMESPACE}
+----
+
+.Deploy proxy
+[source,bash]
+----
+export CP_ADA_LETUSCODE_XYZ_ADMIN_PASSWORD=secret
+export ADA_LETUSCODE_XYZ_ADMIN_PASSWORD=secret
+export COM_CODELABS_DEV_ADMIN_PASSWORD=secret
+envsubst < openldap-proxy.yaml | kubectl -n ${LDAP_NAMESPACE} apply -f -
+----
+
+.Deploy cli
+[source,bash]
+----
+envsubst < ldap-cli.yaml | kubectl apply -n ${LDAP_NAMESPACE} -f -
+----
+
+.Execute ldapsearch query with admin user of the virtual domain
+[source,bash]
+-----
+ldapsearch -x -H ldap://openldap-proxy -b "ou=cp,dc=ada,dc=letuscode,dc=xyz" -D "cn=Admin,ou=cp,dc=ada,dc=letuscode,dc=xyz" -w "${CP_ADA_LETUSCODE_XYZ_ADMIN_PASSWORD}"
+-----
+
+This user is able to search both Active Directories.
+
+.Use user from com.codelabs.dev domain
+[source,bash]
+-----
+export PERSONS_USER_PASSWORD="my_user_password"
+ldapsearch -x -H ldap://openldap-proxy -b "ou=cp,dc=ada,dc=letuscode,dc=xyz" -D "cn=florian.eisele,ou=Users,ou=Persons,ou=cp,dc=ada,dc=letuscode,dc=xyz" -w "${PERSONS_USER_PASSWORD}"
+-----
+
+.User user from ada.letuscode.xyz domain
+[source,bash]
+-----
+export SERVICEACCOUNTS_USER_PASSWORD="my_user_password"
+ldapsearch -x -H ldap://openldap-proxy -b "ou=cp,dc=ada,dc=letuscode,dc=xyz" -D "cn=Admin,ou=Users,ou=ServiceAccounts,ou=cp,dc=ada,dc=letuscode,dc=xyz" -w "${SERVICEACCOUNTS_USER_PASSWORD}"
+-----

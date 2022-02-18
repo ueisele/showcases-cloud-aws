@@ -21,6 +21,8 @@ link:https://app.diagrams.net/#Hueisele%2Fshowcases-cloud-aws%2Fmain%2Finfrastru
   ** link:examples/confluent-ce/kerberos[Confluent AuthN with Kerberos and AuthZ with RBAC]
 * link:examples/confluent-ccs[Confluent Community]
   ** link:examples/confluent-ccs/simple[Simple Kafka Deployment for Docker Compose and Kubernetes]
+* link:examples/ldap[LDAP]
+  ** link:examples/ldap/proxy[OpenLDAP Proxy for two ADs]
 
 == Prerequisites
 
