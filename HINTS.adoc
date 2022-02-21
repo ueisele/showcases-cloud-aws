@@ -1,0 +1,7 @@
+= Hints
+
+== Podman
+
+* Rootless: https://github.com/containers/podman/blob/main/docs/tutorials/rootless_tutorial.md
+* Containers with CPU limits: https://github.com/containers/podman/blob/main/troubleshooting.md#26-running-containers-with-cpu-limits-fails-with-a-permissions-error
+* Multi Arch: https://github.com/multiarch/qemu-user-static

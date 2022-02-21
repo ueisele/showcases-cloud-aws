@@ -1,0 +1,182 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  namespace: confluent-ldapproxy
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: zookeeper
+  serviceName: zookeeper-headless
+  podManagementPolicy: OrderedReady
+  replicas: 3
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: confluent
+        app.kubernetes.io/name: zookeeper
+    spec:
+      containers:
+      - name: zookeeper-server
+        image: confluentinc/cp-zookeeper:7.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 1000
+        ports:
+        - containerPort: 2181
+          name: client
+        - containerPort: 2888
+          name: server
+        - containerPort: 3888
+          name: leader-election
+        resources:
+          limits:
+            cpu: 400m
+            memory: 448Mi
+          requests:
+            cpu: 200m
+            memory: 448Mi
+        env:
+        - name: KAFKA_HEAP_OPTS
+          value: "-Xms384M -Xmx384M"
+        - name: ZOOKEEPER_TICK_TIME
+          value: "2000"
+        - name: ZOOKEEPER_SYNC_LIMIT
+          value: "5"
+        - name: ZOOKEEPER_INIT_LIMIT
+          value: "10"
+        - name: ZOOKEEPER_MAX_CLIENT_CNXNS
+          value: "60"
+        - name: ZOOKEEPER_AUTOPURGE_SNAP_RETAIN_COUNT
+          value: "3"
+        - name: ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL
+          value: "24"
+        - name: ZOOKEEPER_CLIENT_PORT
+          value: "2181"
+        - name: ZOOKEEPER_SERVERS
+          value: "zookeeper-0.zookeeper-headless.confluent-ldapproxy.svc.cluster.local:2888:3888;zookeeper-1.zookeeper-headless.confluent-ldapproxy.svc.cluster.local:2888:3888;zookeeper-2.zookeeper-headless.confluent-ldapproxy.svc.cluster.local:2888:3888"
+        command:
+        - "bash"
+        - "-c"
+        - |
+          ZOOKEEPER_SERVER_ID=$((${HOSTNAME##*-}+1)) \
+          /etc/confluent/docker/run
+        volumeMounts:
+        - name: datadir
+          mountPath: /var/lib/zookeeper/data
+        - name: datalogdir
+          mountPath: /var/lib/zookeeper/log
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: "kubernetes.io/os"
+                    operator: "In"
+                    values: ["linux"]
+                  - key: "kubernetes.io/arch"
+                    operator: "In"
+                    values: ["amd64"]
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["zookeeper"]
+              topologyKey: "kubernetes.io/hostname"
+          - weight: 50
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: "app.kubernetes.io/instance"
+                  operator: In
+                  values: ["confluent"]
+                - key: "app.kubernetes.io/name"
+                  operator: In
+                  values: ["zookeeper"]
+              topologyKey: "topology.kubernetes.io/zone"
+  volumeClaimTemplates:
+  - metadata:
+      name: datadir
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: "5Gi"
+      storageClassName: "gp3"
+  - metadata:
+      name: datalogdir
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: "5Gi"
+      storageClassName: "gp3"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper-headless
+  namespace: confluent-ldapproxy
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  ports:
+  - port: 2888
+    name: server
+  - port: 3888
+    name: leader-election
+  clusterIP: None
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: confluent-ldapproxy
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  type: ClusterIP
+  ports:
+  - port: 2181
+    name: client
+  selector:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zookeeper
+  namespace: confluent-ldapproxy
+  labels:
+    app.kubernetes.io/instance: confluent
+    app.kubernetes.io/name: zookeeper
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: confluent
+      app.kubernetes.io/name: zookeeper
+  maxUnavailable: 1

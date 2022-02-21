@@ -1,0 +1,462 @@
+= Confluent Platform AuthN with LDAP Proxy
+
+The goal of the example is to demonstrate authentication and authorization with LDAP and RBAC on the external listener. Confluent will be confiured in a way that it uses two Activ Directories as identity providers. Domain `ada.letuscode.xyz` is used for service accounts and `com.codelabs.dev` for persons. Which permissions a user has is defined in Confluent MDS based on role bindings to groups.
+
+The idea is to use an OpenLDAP proxy which provides an virtual namespace that federates the two real namespaces.
+
+----
+AD (ada.ada.letuscode.xyz) --- 
+                             |
+                             |--- OpenLDAP Proxy (dc=Confluent) --- Confluent MDS 
+                             |
+AD (com.com.codelabs.dev) ----
+----
+
+*IMPORTANT*: This example requires the Confluent Enterprise edition, because RBAC and LDAP authentication are not suppored by the Open Source edition.
+
+*NOTE*: The Kubernetes manifests are based on the link:https://github.com/confluentinc/cp-helm-charts[Confluent Helm Charts].
+
+== Prerequisites
+
+This example requires link:../../../infrastructure/ldap[infrastructure/ldap] and link:../../../infrastructure/ec2-windows[infrastructure/ec2-windows] to be installed.
+
+=== Domain `ada.letuscode.xyz`
+
+Connetc via RDP to the Windows EC2 instanced for `ada.letuscode.xyz` and create the following users and groups:
+
+`ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* mds
+* kafka
+* kafkarest
+* app_geysers
+
+`ou=Groups,ou=ada,dc=ada,dc=letuscode,dc=xyz`:
+
+* team_enceladus
+
+Add user `app_geysers` to group `team_enceladus`.
+
+=== Domain `com.codelabs.dev`
+
+Connetc via RDP to the Windows EC2 instanced for `com.codelabs.dev` and create the following users and groups:
+
+`ou=Users,ou=com,dc=com,dc=codelabs,dc=dev`:
+
+* ada.lovelace
+* grace.hopper
+
+== Deployment
+
+.Create the Kubernetes namespace for this example:
+[source,bash]
+----
+kubectl apply -f namespace.yaml
+----
+
+=== CLIs
+
+.Deploy CLIs:
+[source,bash]
+----
+kubectl apply -f cli
+----
+
+=== OpenLDAP Proxy
+
+.Deploy proxy
+[source,bash]
+----
+export CP_ADA_LETUSCODE_XYZ_ADMIN_USERNAME="cn=Admin,dc=Confluent"
+export CP_ADA_LETUSCODE_XYZ_ADMIN_PASSWORD="my_password"
+export ADA_LETUSCODE_XYZ_ADMIN_USERNAME="cn=Admin,ou=Users,ou=ada,dc=ada,dc=letuscode,dc=xyz"
+export ADA_LETUSCODE_XYZ_ADMIN_PASSWORD="my_password"
+export COM_CODELABS_DEV_ADMIN_USERNAME="cn=Admin,ou=Users,ou=com,dc=com,dc=codelabs,dc=dev"
+export COM_CODELABS_DEV_ADMIN_PASSWORD="my_password"
+envsubst < cluster/openldapproxy.yaml | kubectl apply -f -
+----
+
+=== ZooKeeper
+
+.Deploy ZooKeeper:
+[source,bash]
+----
+kubectl apply -f cluster/zookeeper.yaml
+----
+
+=== Kafka
+
+.Create the Kubernetes secret for MDS token keypair which is used for token signing:
+[source,bash]
+----
+./create-keys.sh
+./btpl security/mds-token.btpl.yaml | kubectl apply -f -
+----
+
+.Create the Kubernetes secret for MDS LDAP authentication:
+[source,bash]
+----
+export MDS_USERNAME='cn=Admin,dc=Confluent'
+export MDS_PASSWORD='my_password'
+./btpl security/mds-credentials.btpl.yaml | kubectl apply -f -
+----
+
+.Create the Kubernetes secret for Kafka Rest MDS authentication:
+[source,bash]
+----
+export KAFKAREST_USERNAME='cn=kafkarest,ou=Users,ou=ServiceAccounts,dc=Confluent'
+export KAFKAREST_PASSWORD='my_password'
+./btpl security/kafkarest-credentials.btpl.yaml | kubectl apply -f -
+----
+
+.Deploy Kafka brokers:
+[source,bash]
+----
+kubectl apply -f cluster/kafka.yaml
+----
+
+=== Undeployment
+
+.Finaly, if you are done with everything, undeploy it:
+[source,bash]
+----
+kubectl delete -f clie
+kubectl delete -f cluster
+kubectl -n confluent-ldapproxy delete secret -l app.kubernetes.io/instance=confluent
+kubectl -n confluent-ldapproxy delete pvc -l app.kubernetes.io/instance=confluent
+kubectl delete -f namespace.yaml
+----
+
+== Verify Kafka AuthN & AuthZ
+
+=== Super User Login
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for `kafka` super user
+[source,bash]
+----
+export KAFKA_USERNAME="cn=kafka,ou=Users,ou=ServiceAccounts,dc=Confluent"
+export KAFKA_PASSWORD='my_password'
+cat > kafka.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${KAFKA_USERNAME}" \
+    password="${KAFKA_PASSWORD}";
+EOF
+----
+
+.List topics with `kafka` super user
+[source,bash]
+----
+kafka-topics --command-config kafka.config --bootstrap-server kafka:9092 --list
+----
+
+This command will list all topics because this user is a Kafka super user.
+
+=== Person Login with User Permissions
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for user `cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent`
+[source,bash]
+----
+export USER_USERNAME="cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent"
+export USER_PASSWORD='my_password'
+cat > user.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${USER_USERNAME}" \
+    password="${USER_PASSWORD}";
+EOF
+----
+
+.List topics with user `cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent`
+[source,bash]
+----
+kafka-topics --command-config kafka.config --bootstrap-server kafka:9092 --list
+----
+
+This will list no no topics, because the user has no permissions.
+
+Now lets create role bindings for this user.
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `cn=admin,ou=Users,ou=ServiceAccounts,dc=Confluent`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+----
+
+.Create Role Bindings for user `cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent \
+    --role DeveloperManage \
+    --resource Topic:al_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent  \
+    --role DeveloperWrite \
+    --resource Topic:al_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent  \
+    --role DeveloperRead \
+    --resource Topic:al_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent  \
+    --role DeveloperManage \
+    --resource Group:al_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+    
+confluent iam rbac role-binding create \
+    --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent  \
+    --role DeveloperRead \
+    --resource Group:al_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent  \
+    --role DeveloperWrite \
+    --resource Group:al_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal User:cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent
+----
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create an topic with name `al_app1`
+[source,bash]
+----
+kafka-topics --command-config user.config --bootstrap-server kafka:9092 \
+        --create --topic al_app1 --replication-factor 3 --partitions 3
+----
+
+The user `cn=ada.lovelace,ou=Users,ou=Persons,dc=Confluent` was able to create the topic with the name `al_app1`.
+
+.Publish a message to topic `al_app1`
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic al_app1 \
+    --producer.config user.config \
+    --property parse.key=false
+----
+
+.Consume a message from topic `al_app1` with consumer group `al_app1_cg`
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic al_app1 \
+    --group al_app1_cg \
+    --consumer.config user.config  \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----
+
+=== Service Account Login with Group Permissions
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.Create client config for user `cn=app_geysers,ou=Users,ou=ServiceAccounts,dc=Confluent`
+[source,bash]
+----
+export APP_USERNAME="cn=app_geysers,ou=Users,ou=ServiceAccounts,dc=Confluent"
+export APP_PASSWORD='my_password'
+cat > app.config << EOF
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+    username="${APP_USERNAME}" \
+    password="${APP_PASSWORD}";
+EOF
+----
+
+.List topics with user `cn=app_geysers,ou=Users,ou=ServiceAccounts,dc=Confluent`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has no permissions. Therefore no topics are listed.
+
+Now lets create role bindings for the group of this user.
+
+.Exec into the Confluent Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=confluent-cli -o name) bash
+----
+
+.Login with super user `cn=admin,ou=Users,ou=ServiceAccounts,dc=Confluent`
+[source,bash]
+----
+confluent login
+----
+
+.Resolve Cluster Id
+[source,bash]
+----
+apk add jq
+export CLUSTER_ID="$(confluent cluster describe -o json | jq -r .crn)"
+----
+
+.Create Role Bindings for group `cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent`
+[source,bash]
+----
+confluent iam rbac role-binding create \
+    --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent \
+    --role DeveloperManage \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent \
+    --role DeveloperWrite \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent \
+    --role DeveloperRead \
+    --resource Topic:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent \
+    --role DeveloperManage \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+    
+confluent iam rbac role-binding create \
+    --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent \
+    --role DeveloperRead \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+
+confluent iam rbac role-binding create \
+    --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent \
+    --role DeveloperWrite \
+    --resource Group:enceladus_ \
+    --prefix \
+    --kafka-cluster-id $CLUSTER_ID
+----
+
+.List created role bindings
+[source,bash]
+----
+confluent iam rbac role-binding list --kafka-cluster-id $CLUSTER_ID --principal Group:cn=team_enceladus,ou=Groups,ou=ServiceAccounts,dc=Confluent
+----
+
+.Exec into the Kafka Cli pod
+[source,bash]
+----
+kubectl -n confluent-ldapproxy exec -it $(kubectl -n confluent-ldapproxy get pods -l app.kubernetes.io/name=kafka-cli -o name) bash
+----
+
+.List topics with user `cn=app_geysers,ou=Users,ou=ServiceAccounts,dc=Confluent`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 --list
+----
+
+This is a valid user, but has only permissions for topics prefixed with `enceladus_`.
+
+.Create an topic with name `enceladus_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic enceladus_app1 --replication-factor 3 --partitions 3
+----
+
+.Try to create an topic with name `europa_app1`
+[source,bash]
+----
+kafka-topics --command-config app.config --bootstrap-server kafka:9092 \
+        --create --topic europa_app1 --replication-factor 3 --partitions 3
+----
+
+The user `cn=app_geysers,ou=Users,ou=ServiceAccounts,dc=Confluent` was only able to create the topic with the name `enceladus_app1`.
+
+.Publish a message to topic `enceladus_app1`
+[source,bash]
+----
+echo "test_message" | kafka-console-producer \
+    --broker-list kafka:9092 \
+    --topic enceladus_app1 \
+    --producer.config app.config \
+    --property parse.key=false
+----
+
+.Consume a message from topic `enceladus_app1` with consumer group `enceladus_app1_cg`
+[source,bash]
+----
+kafka-console-consumer \
+    --bootstrap-server kafka:9092 \
+    --topic enceladus_app1 \
+    --group enceladus_app1_cg \
+    --consumer.config app.config  \
+    --from-beginning \
+    --property parse.key=false \
+    --max-messages 1
+----
+
+== Next Steps
+
+* Create simplified compose setup with two OpenLDAP instances instead of AD (see https://blog.oddbit.com/post/2010-02-16-merging-directories-with-openl/)
+* Support mail as principal names for users and group. Approach could be to add virtual attributes which generate mail (see https://gist.github.com/jirutka/967bf78a61ace23dfa5a56242778c7fc)

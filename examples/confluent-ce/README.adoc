@@ -3,4 +3,5 @@
 All examples are based on the Kubernetes installation provided in the link:../../infrastructure[infrastructure] folder of this repository.
 
 * link:ldap[Confluent AuthN with LDAP and AuthZ with RBAC]
+* link:ldapproxy[Confluent AuthN with two LDAPs and AuthZ with RBAC]
 * link:kerberos[Confluent AuthN with Kerberos and AuthZ with RBAC]
