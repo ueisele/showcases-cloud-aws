@@ -1,0 +1,46 @@
+
+
+https://docs.confluent.io/platform/current/installation/versions-interoperability.html#operator-cp-compatibility
+https://docs.confluent.io/platform/current/installation/upgrade.html#steps-for-upgrading-to-version-x
+https://docs.confluent.io/operator/current/co-quickstart.html
+
+----
+helm search repo -l confluent
+----
+
+----
+export CHART_VERSION_CONFLUENT=0.435.40
+helm show values confluentinc/confluent-for-kubernetes --version ${CHART_VERSION_CONFLUENT} > cfk-values.yaml
+----
+
+----
+export NAMESPACE=ue-confluent
+kubectl create ns ${NAMESPACE}
+helm upgrade -i confluent confluentinc/confluent-for-kubernetes --version ${CHART_VERSION_CONFLUENT} --namespace ${NAMESPACE} --create-namespace --values cfk-values.yaml
+----
+
+----
+kubectl -n $NAMESPACE apply -f confluent-platform.yaml
+----
+
+
+----
+Events:
+  Type     Reason            Age                  From   Message
+  ----     ------            ----                 ----   -------
+  Warning  Warning           54s (x15 over 4m9s)  kafka  waiting for at-least one zookeeper pod availability
+----
+
+----
+kafka-producer-perf-test --producer-props bootstrap.servers=kafka:9092 acks=-1 --record-size 4092 --throughput 3 --num-records 100000000 --topic test
+----
+
+----
+org.apache.kafka.common.errors.InvalidRequestException: Error getting request for apiKey: FETCH, apiVersion: 13, connectionId: 100.64.167.234:9072-100.64.68.46:46572-38, listenerName: ListenerName(REPLICATION), principal: User:ANONYMOUS
+Caused by: org.apache.kafka.common.errors.UnsupportedVersionException: Can't read version 13 of FetchTopic
+----
+
+7.0.1    -> 7.1.1
+3.0 (12) -> 3.1 (13)
+
+see https://github.com/apache/kafka/blob/cc384054c6e63abd011f7687523b1292062b049d/server-common/src/main/java/org/apache/kafka/server/common/MetadataVersion.java#L264

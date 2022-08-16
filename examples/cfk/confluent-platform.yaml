@@ -1,0 +1,43 @@
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Zookeeper
+metadata:
+  name: zookeeper
+spec:
+  replicas: 3
+  image:
+    application: repository.eu-central-1.aws.kuehne-nagel.cloud/confluentinc/cp-zookeeper:7.0.1
+    init: repository.eu-central-1.aws.kuehne-nagel.cloud/confluentinc/confluent-init-container:2.3.2
+  dataVolumeCapacity: 10Gi
+  logVolumeCapacity: 10Gi
+  podTemplate:
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 500m
+---
+apiVersion: platform.confluent.io/v1beta1
+kind: Kafka
+metadata:
+  name: kafka
+spec:
+  replicas: 3
+  image:
+    application: repository.eu-central-1.aws.kuehne-nagel.cloud/confluentinc/cp-server:7.0.1
+    init: repository.eu-central-1.aws.kuehne-nagel.cloud/confluentinc/confluent-init-container:2.3.2
+#    application: repository.eu-central-1.aws.kuehne-nagel.cloud/confluentinc/cp-server:7.1.1
+#    init: repository.eu-central-1.aws.kuehne-nagel.cloud/confluentinc/confluent-init-container:2.3.2
+  dataVolumeCapacity: 10Gi
+  metricReporter:
+    enabled: true
+  podTemplate:
+    resources:
+      requests:
+        memory: 1Gi
+        cpu: 1000m
+  configOverrides:
+    server:
+      - inter.broker.protocol.version=3.0
+      - log.message.format.version=3.0
+#      - inter.broker.protocol.version=3.1
+#      - log.message.format.version=3.1
